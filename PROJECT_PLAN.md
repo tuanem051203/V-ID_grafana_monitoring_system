@@ -8,54 +8,7 @@ Nguồn bối cảnh ban đầu: `V-ID-Field-Guide.html`.
 
 > Trạng thái hiện tại: repository mới chỉ có `README.md`; chưa có dashboard, rule Prometheus, tài liệu metric, cấu hình datasource hay môi trường kiểm thử.
 
-## 2. Bối cảnh dự án
-
-V-ID là nền tảng định danh và đăng nhập dùng chung cho hệ sinh thái Vingroup. Luồng đăng nhập chính:
-
-1. Người dùng đăng nhập từ ứng dụng PnL hoặc V-ID SDK.
-2. Kong Gateway định tuyến và kiểm tra request/JWT.
-3. `identity-provider` xử lý đăng nhập, OTP, passkey và MFA.
-4. Hydra phát hành OAuth2/OIDC token.
-5. `oauth2-token` chuẩn hóa claim giữa các token issuer.
-6. Ứng dụng tạo session cho người dùng.
-
-Các thành phần liên quan trực tiếp đến monitoring:
-
-- Edge: Kong Gateway, `identity-provider-web`, `guard`.
-- Identity core: `identity-provider`, Hydra, `oauth2-token`, `oauth2-client-registry`, `authz`, account, organization, token.
-- Hạ tầng/dữ liệu: Prometheus, Grafana, Kafka, Aurora và các dependency bên ngoài như nhà cung cấp OTP.
-
-Đây là dịch vụ Tier-1. Dashboard cần giúp đội vận hành trả lời nhanh:
-
-- Người dùng có đăng nhập được không?
-- OTP có được gửi và xác thực thành công không?
-- Hệ thống có đáp ứng SLO về availability và latency không?
-- Token có được phát hành ổn định không?
-- Thành phần, realm, client, quốc gia hoặc môi trường nào đang gây lỗi?
-- Có regression nào cần cảnh báo trước khi ảnh hưởng diện rộng không?
-
-## 3. Phạm vi
-
-### Trong phạm vi
-
-- Kiểm kê metric Prometheus hiện có.
-- Chốt định nghĩa KPI với owner nghiệp vụ và kỹ thuật.
-- Viết PromQL và Prometheus recording rules.
-- Xây Grafana dashboard có biến lọc theo môi trường và chiều dữ liệu phù hợp.
-- Định nghĩa SLI/SLO và alert rules cho môi trường kiểm thử.
-- Test query, test rule, kiểm tra dashboard và viết runbook.
-- Đóng gói thay đổi để tạo merge request vào observability repository.
-- Xác nhận artifact ở mức tổng quan tại UAT theo quy trình của tổ chức.
-
-### Ngoài phạm vi ban đầu
-
-- Thay đổi logic authentication hoặc business flow của V-ID.
-- Bổ sung instrumentation vào service trước khi hoàn tất metric gap analysis.
-- Thiết kế lại toàn bộ monitoring stack.
-- Alert dựa trên log chứa PII.
-- Thay đổi hạ tầng hoặc dịch vụ V-ID nằm ngoài phạm vi monitoring.
-
-## 4. Nguyên tắc thiết kế
+## 2. Nguyên tắc thiết kế
 
 - Dashboard KPI ưu tiên góc nhìn người dùng, không chỉ CPU/RAM.
 - Mỗi KPI phải có owner, công thức, đơn vị, nguồn metric và ngưỡng.
@@ -67,7 +20,7 @@ Các thành phần liên quan trực tiếp đến monitoring:
 - Môi trường kiểm thử dùng để kiểm chứng rule và alert.
 - Mọi ngưỡng ban đầu phải được hiệu chỉnh bằng baseline thực tế.
 
-## 5. Bộ KPI đề xuất
+## 3. Bộ KPI đề xuất
 
 Field Guide nói có **6 KPI có thể tính từ metric Prometheus hiện có**, nhưng chưa cung cấp tên metric hoặc định nghĩa chính thức. Bảng dưới đây là bộ KPI đề xuất để bắt đầu discovery; chỉ được coi là chính thức sau khi owner xác nhận.
 
@@ -101,7 +54,7 @@ Field Guide nói có **6 KPI có thể tính từ metric Prometheus hiện có**
 7. Dữ liệu trễ hoặc thiếu được hiển thị thế nào?
 8. Owner và ngưỡng cảnh báo là ai/quy định nào?
 
-## 6. Mẫu đặc tả KPI bắt buộc
+## 4. Mẫu đặc tả KPI bắt buộc
 
 Mỗi KPI sau khi discovery phải có một bản ghi theo mẫu:
 
@@ -135,7 +88,7 @@ runbook: <url-or-repo-path>
 approved_by: <owner>
 ```
 
-## 7. PromQL mẫu
+## 5. PromQL mẫu
 
 Các tên metric dưới đây chỉ là placeholder, không được đưa thẳng vào rule:
 
@@ -168,7 +121,7 @@ Khi triển khai thật phải:
 - Kiểm tra counter reset.
 - Không average các percentile đã được tính sẵn.
 
-## 8. Cấu trúc dashboard đề xuất
+## 6. Cấu trúc dashboard đề xuất
 
 ### Row 1 — Executive health
 
@@ -221,7 +174,7 @@ Khi triển khai thật phải:
 
 Mặc định không dùng biến chọn tất cả nếu nó tạo query quá nặng. Mỗi panel phải có title rõ, unit đúng, legend hữu ích và mô tả công thức.
 
-## 9. SLI, SLO và alerting
+## 7. SLI, SLO và alerting
 
 Target chính thức phải do service owner phê duyệt. Có thể dùng ví dụ sau để thiết kế kỹ thuật:
 
@@ -250,7 +203,7 @@ Mỗi alert phải có:
 - Dashboard link và runbook link.
 - Owner/escalation path.
 
-## 10. Kế hoạch thực hiện từ đầu đến cuối
+## 8. Kế hoạch thực hiện từ đầu đến cuối
 
 ### Giai đoạn 0 — Khởi tạo và xin quyền truy cập
 
@@ -279,7 +232,7 @@ Mỗi alert phải có:
 
 ### Giai đoạn 2 — Chốt KPI và SLO
 
-- [ ] T2.1 Viết đặc tả cho từng KPI theo mẫu ở mục 6.
+- [ ] T2.1 Viết đặc tả cho từng KPI theo mẫu ở mục 4.
 - [ ] T2.2 Xác định tử số, mẫu số, exclusion và dimensions.
 - [ ] T2.3 Phân biệt lỗi kỹ thuật, lỗi nghiệp vụ và hành vi người dùng.
 - [ ] T2.4 Phân tích baseline 7–30 ngày nếu retention cho phép.
@@ -319,7 +272,7 @@ Mỗi alert phải có:
 
 **Đầu ra:** `grafana/dashboards/vid-kpis.json`.
 
-**Hoàn thành khi:** dashboard import được vào instance sạch, không có panel error và trả lời được các câu hỏi ở mục 2.
+**Hoàn thành khi:** dashboard import được vào instance sạch, không có panel error và hiển thị đầy đủ sáu KPI đã được phê duyệt.
 
 ### Giai đoạn 5 — Alert rules và runbook
 
@@ -347,7 +300,7 @@ Mỗi alert phải có:
 
 **Hoàn thành khi:** MR được duyệt, kết quả UAT được xác nhận, dashboard/rules hoạt động và có rollback/runbook.
 
-## 11. Chia task để giao cho Codex
+## 9. Chia task để giao cho Codex
 
 Mỗi task dưới đây nên được giao trong một prompt/phiên làm việc riêng. Không yêu cầu Codex đoán metric hoặc credential.
 
@@ -388,7 +341,7 @@ Acceptance criteria:
 - <copy tiêu chí hoàn thành tương ứng từ PROJECT_PLAN.md>
 ```
 
-## 12. Cấu trúc repository mục tiêu
+## 10. Cấu trúc repository mục tiêu
 
 ```text
 .
@@ -422,7 +375,7 @@ Acceptance criteria:
 
 Cấu trúc thực tế phải theo observability repository hiện hành nếu khác với đề xuất này.
 
-## 13. Definition of Done toàn dự án
+## 11. Definition of Done toàn dự án
 
 Dự án chỉ hoàn thành khi:
 
@@ -437,7 +390,7 @@ Dự án chỉ hoàn thành khi:
 - [ ] Có MR review, xác nhận kết quả và rollback procedure.
 - [ ] README giải thích vòng đời validate, triển khai và cập nhật dashboard/rules.
 
-## 14. Rủi ro và cách xử lý
+## 12. Rủi ro và cách xử lý
 
 | Rủi ro | Ảnh hưởng | Cách xử lý |
 |---|---|---|
@@ -450,7 +403,7 @@ Dự án chỉ hoàn thành khi:
 | Dữ liệu auth chứa PII | Rủi ro bảo mật | Chỉ dùng label đã chuẩn hóa, review security |
 | Query nặng trên range dài | Dashboard timeout | Recording rules, query inspection, giới hạn dimensions |
 
-## 15. Việc nên làm ngay tiếp theo
+## 13. Việc nên làm ngay tiếp theo
 
 1. Xin link/wiki chứa định nghĩa chính thức của 6 KPI.
 2. Xác định observability repository thực tế và convention hiện có.
