@@ -67,6 +67,7 @@ Grafana
   +--> Service / Dependency Health
 ```
 
+
 Luồng xử lý:
 
 1. V-ID services xuất metric qua endpoint `/metrics`.
