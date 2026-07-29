@@ -14,25 +14,7 @@ Dự án sử dụng **Prometheus**, **Grafana** và **Alertmanager** để:
 
 ## Bối cảnh
 
-V-ID là nền tảng đăng nhập và định danh dùng chung cho các ứng dụng trong hệ sinh thái Vingroup. Luồng xác thực chính:
-
-```text
-PnL App / V-ID SDK
-        |
-        v
-Kong Gateway
-        |
-        v
-identity-provider ----> OTP Provider
-        |
-        v
-Hydra / oauth2-token
-        |
-        v
-Application Session
-```
-
-Đây là luồng Tier-1. Hệ thống monitoring cần giúp đội vận hành trả lời nhanh:
+V-ID là nền tảng đăng nhập và định danh dùng chung cho các ứng dụng trong hệ sinh thái Vingroup. Hệ thống monitoring cần giúp đội vận hành trả lời nhanh:
 
 - Người dùng có đăng nhập được không?
 - OTP có được gửi và xác minh thành công không?
@@ -44,7 +26,7 @@ Application Session
 ## Kiến trúc monitoring
 
 ```text
-V-ID Services / Dependencies
+V-ID Services 
         |
         | /metrics
         v
@@ -78,7 +60,7 @@ Luồng xử lý:
 6. Alertmanager group, route và gửi cảnh báo tới kênh vận hành.
 7. On-call sử dụng dashboard và runbook để điều tra, giảm thiểu ảnh hưởng.
 
-## Sáu KPI chính
+## 6 KPI chính
 
 | ID | KPI | Ý nghĩa |
 |---|---|---|
@@ -103,9 +85,7 @@ Target trong tài liệu hiện là đề xuất ban đầu. Trước khi áp d�
 - Prometheus recording rules và alert rules
 - Alertmanager
 - Grafana
-- Python 3.11+ và Flask cho local mock exporter
 - Git/GitOps
-- `promtool` cho validation và rule unit tests
 
 ## Cấu trúc repository
 
@@ -113,7 +93,6 @@ Target trong tài liệu hiện là đề xuất ban đầu. Trước khi áp d�
 .
 ├── README.md
 ├── PROJECT_PLAN.md
-├── V-ID_Mock_Metrics_Guide.md
 ├── docs/
 │   ├── README.md
 │   ├── 01-Overview.md
@@ -124,10 +103,6 @@ Target trong tài liệu hiện là đề xuất ban đầu. Trước khi áp d�
 │   ├── 06-Alerting.md
 │   ├── 08-GitOps.md
 │   └── 09-Deployment.md
-└── mock-exporter/
-    ├── README.md
-    ├── requirements.txt
-    └── mock_metrics.py
 ```
 
 Các artifact dự kiến bổ sung trong những giai đoạn tiếp theo:
@@ -151,7 +126,7 @@ scripts/
 Bắt đầu tại [docs/README.md](docs/README.md):
 
 1. [Overview](docs/01-Overview.md) — kiến trúc monitoring và phạm vi.
-2. [KPI, SLI và SLO](docs/02-KPI-SLI-SLO.md) — định nghĩa sáu KPI.
+2. [KPI, SLI và SLO](docs/02-KPI-SLI-SLO.md) — định nghĩa 6 KPI.
 3. [Metrics](docs/03-Metrics.md) — metric contract và label policy.
 4. [Prometheus](docs/04-Prometheus.md) — scrape, recording và alert rules.
 5. [Grafana](docs/05-Grafana.md) — dashboard và visualization.
@@ -159,58 +134,6 @@ Bắt đầu tại [docs/README.md](docs/README.md):
 7. [GitOps](docs/08-GitOps.md) — quản lý artifact bằng Git.
 8. [Deployment](docs/09-Deployment.md) — quy trình triển khai và kiểm thử UAT.
 
-Kế hoạch công việc chi tiết và cách chia task cho Codex nằm tại [PROJECT_PLAN.md](PROJECT_PLAN.md).
-
-Không có chương `07-Mock` trong bộ tài liệu chính. Mock exporter chỉ là công cụ hỗ trợ phát triển khi chưa có dữ liệu từ hệ thống thật.
-
-## Chạy mock exporter
-
-Mock exporter cung cấp dữ liệu Prometheus local cho sáu KPI và một số signal hạ tầng.
-
-```powershell
-cd mock-exporter
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python mock_metrics.py
-```
-
-Kiểm tra:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/health
-Invoke-WebRequest http://localhost:8000/metrics
-```
-
-Exporter hỗ trợ ba kịch bản:
-
-```powershell
-Invoke-RestMethod -Method Post http://localhost:8000/scenario/normal
-Invoke-RestMethod -Method Post http://localhost:8000/scenario/degraded
-Invoke-RestMethod -Method Post http://localhost:8000/scenario/outage
-```
-
-Xem chi tiết tại [mock-exporter/README.md](mock-exporter/README.md).
-
-## Prometheus scrape local
-
-Khi Prometheus chạy trực tiếp trên máy:
-
-```yaml
-scrape_configs:
-  - job_name: vid-mock
-    scrape_interval: 5s
-    static_configs:
-      - targets:
-          - localhost:8000
-```
-
-Nếu Prometheus chạy trong Docker Desktop, target thường là:
-
-```yaml
-targets:
-  - host.docker.internal:8000
-```
 
 ## Deployment lifecycle
 
