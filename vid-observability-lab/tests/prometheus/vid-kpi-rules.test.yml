@@ -1,0 +1,69 @@
+rule_files:
+  - ../../observability/prometheus/rules/vid-kpi-rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'vid_auth_requests_total{environment="uat",cluster="test",result="success",reason="none"}'
+        values: '0+999x6'
+      - series: 'vid_auth_requests_total{environment="uat",cluster="test",result="failed",reason="system_error"}'
+        values: '0+1x6'
+      - series: 'vid_auth_requests_total{environment="uat",cluster="test",result="failed",reason="invalid_credential"}'
+        values: '0+500x6'
+      - series: 'vid_auth_request_duration_seconds_bucket{environment="uat",cluster="test",le="0.5",result="success",reason="none"}'
+        values: '0+950x6'
+      - series: 'vid_auth_request_duration_seconds_count{environment="uat",cluster="test",result="success",reason="none"}'
+        values: '0+1000x6'
+      - series: 'vid_otp_send_attempts_total{environment="uat",cluster="test",result="delivered",reason="none"}'
+        values: '0+95x6'
+      - series: 'vid_otp_send_attempts_total{environment="uat",cluster="test",result="failed",reason="provider_error"}'
+        values: '0+5x6'
+      - series: 'vid_otp_send_attempts_total{environment="uat",cluster="test",result="failed",reason="invalid_destination"}'
+        values: '0+100x6'
+      - series: 'vid_otp_verification_attempts_total{environment="uat",cluster="test",result="success"}'
+        values: '0+88x6'
+      - series: 'vid_otp_verification_attempts_total{environment="uat",cluster="test",result="failed"}'
+        values: '0+12x6'
+      - series: 'vid_token_requests_total{environment="uat",cluster="test",result="issued",reason="none"}'
+        values: '0+999x6'
+      - series: 'vid_token_requests_total{environment="uat",cluster="test",result="failed",reason="signing_error"}'
+        values: '0+1x6'
+      - series: 'vid_token_requests_total{environment="uat",cluster="test",result="failed",reason="invalid_grant"}'
+        values: '0+100x6'
+      - series: 'vid_http_requests_total{environment="uat",cluster="test",critical="true",status_code="200"}'
+        values: '0+999x6'
+      - series: 'vid_http_requests_total{environment="uat",cluster="test",critical="true",status_code="503"}'
+        values: '0+1x6'
+    promql_expr_test:
+      - expr: 'vid:kpi_authentication_success:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:kpi_authentication_success:ratio5m",cluster="test",environment="uat"}'
+            value: 0.9990000000000001
+      - expr: 'vid:kpi_authentication_latency_under_500ms:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:kpi_authentication_latency_under_500ms:ratio5m",cluster="test",environment="uat"}'
+            value: 0.95
+      - expr: 'vid:kpi_otp_delivery_success:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:kpi_otp_delivery_success:ratio5m",cluster="test",environment="uat"}'
+            value: 0.9500000000000001
+      - expr: 'vid:kpi_otp_verification_success:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:kpi_otp_verification_success:ratio5m",cluster="test",environment="uat"}'
+            value: 0.88
+      - expr: 'vid:kpi_token_issuance_success:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:kpi_token_issuance_success:ratio5m",cluster="test",environment="uat"}'
+            value: 0.9990000000000001
+      - expr: 'vid:kpi_platform_availability:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:kpi_platform_availability:ratio5m",cluster="test",environment="uat"}'
+            value: 0.9990000000000001

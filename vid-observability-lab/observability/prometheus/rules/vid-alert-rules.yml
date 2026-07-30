@@ -1,0 +1,206 @@
+groups:
+  - name: vid-data-health
+    interval: 30s
+    rules:
+      - alert: VIDMetricsTargetDown
+        expr: up{job="vid-metrics-simulator"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: vid-sre
+          service: observability
+        annotations:
+          summary: "V-ID metrics target is down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} in {{ $labels.environment }}/{{ $labels.cluster }}."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/metrics-target-down"
+
+      - alert: VIDRecordingRulesFailing
+        expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform-observability
+          service: prometheus
+        annotations:
+          summary: "Prometheus recording rule evaluation is failing"
+          description: "Prometheus {{ $labels.instance }} reported rule evaluation failures."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/rule-evaluation-failure"
+
+      - alert: VIDEligibleTrafficMissing
+        expr: |
+          absent(vid:eligible_requests:rate5m)
+          or
+          sum by (environment, cluster) (vid:eligible_requests:rate5m) == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: vid-sre
+          service: identity-platform
+        annotations:
+          summary: "No eligible V-ID traffic"
+          description: "No eligible KPI traffic has been observed for 10 minutes. Check traffic, instrumentation and scrape health."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/no-eligible-traffic"
+
+  - name: vid-slo-burn-rate
+    interval: 30s
+    rules:
+      # Fast burn: pages only when both short and long confirmation windows burn.
+      - alert: VIDAuthenticationSuccessFastBurn
+        expr: |
+          vid:slo_authentication_success:burnrate5m > 14.4
+          and on (environment, cluster)
+          vid:slo_authentication_success:burnrate1h > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          team: vid-sre
+          service: auth-service
+          slo: authentication-success
+        annotations:
+          summary: "Authentication success SLO is burning fast"
+          description: "Error budget burn rate is above 14.4x on both 5m and 1h windows for {{ $labels.environment }}/{{ $labels.cluster }}."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/authentication-success"
+
+      - alert: VIDAuthenticationLatencyFastBurn
+        expr: |
+          vid:slo_authentication_latency:burnrate5m > 14.4
+          and on (environment, cluster)
+          vid:slo_authentication_latency:burnrate1h > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          team: vid-sre
+          service: auth-service
+          slo: authentication-latency
+        annotations:
+          summary: "Authentication latency SLO is burning fast"
+          description: "The under-500ms error budget is burning above 14.4x on 5m and 1h windows."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/authentication-latency"
+
+      - alert: VIDOTPDeliveryFastBurn
+        expr: |
+          vid:slo_otp_delivery:burnrate5m > 14.4
+          and on (environment, cluster)
+          vid:slo_otp_delivery:burnrate1h > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          team: vid-sre
+          service: otp-service
+          slo: otp-delivery
+        annotations:
+          summary: "OTP delivery SLO is burning fast"
+          description: "OTP delivery error budget is burning above 14.4x on 5m and 1h windows."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-delivery"
+
+      - alert: VIDTokenIssuanceFastBurn
+        expr: |
+          vid:slo_token_issuance:burnrate5m > 14.4
+          and on (environment, cluster)
+          vid:slo_token_issuance:burnrate1h > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          team: vid-sre
+          service: token-service
+          slo: token-issuance
+        annotations:
+          summary: "Token issuance SLO is burning fast"
+          description: "Token issuance error budget is burning above 14.4x on 5m and 1h windows."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/token-issuance"
+
+      - alert: VIDPlatformAvailabilityFastBurn
+        expr: |
+          vid:slo_platform_availability:burnrate5m > 14.4
+          and on (environment, cluster)
+          vid:slo_platform_availability:burnrate1h > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          team: vid-sre
+          service: identity-platform
+          slo: platform-availability
+        annotations:
+          summary: "Platform availability SLO is burning fast"
+          description: "Platform availability error budget is burning above 14.4x on 5m and 1h windows."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/platform-availability"
+
+      # Slow burn opens a ticket/warning instead of paging.
+      - alert: VIDSLOSlowBurn
+        expr: |
+          (
+            vid:slo_authentication_success:burnrate1h > 6
+            and on (environment, cluster)
+            vid:slo_authentication_success:burnrate6h > 6
+          )
+          or
+          (
+            vid:slo_authentication_latency:burnrate1h > 6
+            and on (environment, cluster)
+            vid:slo_authentication_latency:burnrate6h > 6
+          )
+          or
+          (
+            vid:slo_otp_delivery:burnrate1h > 6
+            and on (environment, cluster)
+            vid:slo_otp_delivery:burnrate6h > 6
+          )
+          or
+          (
+            vid:slo_token_issuance:burnrate1h > 6
+            and on (environment, cluster)
+            vid:slo_token_issuance:burnrate6h > 6
+          )
+          or
+          (
+            vid:slo_platform_availability:burnrate1h > 6
+            and on (environment, cluster)
+            vid:slo_platform_availability:burnrate6h > 6
+          )
+        for: 15m
+        labels:
+          severity: warning
+          team: vid-sre
+          service: identity-platform
+        annotations:
+          summary: "A V-ID SLO is experiencing sustained slow burn"
+          description: "Error budget burn is above 6x on both 1h and 6h windows. Inspect the SLO dashboard to identify the affected KPI."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/slo-slow-burn"
+
+  - name: vid-symptoms
+    interval: 30s
+    rules:
+      - alert: VIDOTPProviderDown
+        expr: vid_otp_provider_status{provider!="mock"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          team: vid-sre
+          service: otp-service
+        annotations:
+          summary: "OTP provider {{ $labels.provider }} is down"
+          description: "Provider {{ $labels.provider }} reports DOWN in {{ $labels.environment }}/{{ $labels.cluster }}."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-provider-down"
+
+      - alert: VIDOTPQueueBacklog
+        expr: vid_otp_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: vid-sre
+          service: otp-service
+        annotations:
+          summary: "OTP queue backlog is high"
+          description: "OTP queue has {{ $value }} messages in {{ $labels.environment }}/{{ $labels.cluster }}."
+          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-queue-backlog"

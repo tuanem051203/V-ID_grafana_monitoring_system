@@ -1,0 +1,57 @@
+scenarios:
+  normal:
+    auth_requests: 1000
+    auth_success_rate: 0.999
+    auth_under_500ms_rate: 0.97
+    otp_requests: 300
+    otp_delivery_rate: 0.97
+    otp_pending_rate: 0.01
+    otp_verification_rate: 0.88
+    token_requests: 800
+    token_success_rate: 0.999
+    platform_requests: 1200
+    platform_availability_rate: 0.999
+    otp_provider_up: 1
+    otp_queue_size: 5
+  auth_slow:
+    auth_requests: 1000
+    auth_success_rate: 0.995
+    auth_under_500ms_rate: 0.65
+    otp_requests: 300
+    otp_delivery_rate: 0.97
+    otp_pending_rate: 0.01
+    otp_verification_rate: 0.88
+    token_requests: 800
+    token_success_rate: 0.998
+    platform_requests: 1200
+    platform_availability_rate: 0.998
+    otp_provider_up: 1
+    otp_queue_size: 8
+  otp_provider_incident:
+    auth_requests: 900
+    auth_success_rate: 0.998
+    auth_under_500ms_rate: 0.96
+    otp_requests: 300
+    otp_delivery_rate: 0.58
+    otp_pending_rate: 0.2
+    otp_verification_rate: 0.7
+    token_requests: 650
+    token_success_rate: 0.998
+    platform_requests: 1100
+    platform_availability_rate: 0.985
+    otp_provider_up: 0
+    otp_queue_size: 120
+  platform_incident:
+    auth_requests: 650
+    auth_success_rate: 0.78
+    auth_under_500ms_rate: 0.55
+    otp_requests: 220
+    otp_delivery_rate: 0.72
+    otp_pending_rate: 0.12
+    otp_verification_rate: 0.65
+    token_requests: 450
+    token_success_rate: 0.8
+    platform_requests: 900
+    platform_availability_rate: 0.72
+    otp_provider_up: 0
+    otp_queue_size: 200
