@@ -4,6 +4,9 @@ services:
   metrics-simulator:
     build:
       context: ../../services/metrics-simulator
+    environment:
+      VID_LOAD_PROFILE: ${VID_LOAD_PROFILE:-development}
+      VID_SIMULATION_DAY_SECONDS: ${VID_SIMULATION_DAY_SECONDS:-86400}
     ports:
       - "8000:8000"
     restart: unless-stopped

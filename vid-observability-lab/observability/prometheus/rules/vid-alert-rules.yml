@@ -180,7 +180,7 @@ groups:
     interval: 30s
     rules:
       - alert: VIDOTPProviderDown
-        expr: vid_otp_provider_status{provider!="mock"} == 0
+        expr: otp_provider_status{provider!="mock"} == 0
         for: 2m
         labels:
           severity: warning
@@ -193,7 +193,7 @@ groups:
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-provider-down"
 
       - alert: VIDOTPQueueBacklog
-        expr: vid_otp_queue_size > 100
+        expr: otp_queue_size > 100
         for: 5m
         labels:
           severity: warning

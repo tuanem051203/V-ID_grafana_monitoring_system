@@ -8,7 +8,7 @@ base URL before production.
 1. Confirm `environment`, `cluster`, `service`, alert start time and user impact.
 2. Open **V-ID — SLO & Operations** and check target health, eligible traffic,
    active alerts and rule evaluation failures.
-3. If telemetry is healthy, open **V-ID — 6 KPI Overview** and identify the
+3. If telemetry is healthy, open **V-ID — Overview** and identify the
    affected reason/provider/endpoint.
 4. Check the most recent deployment and configuration changes.
 5. Apply only an approved mitigation; record timestamps and evidence.

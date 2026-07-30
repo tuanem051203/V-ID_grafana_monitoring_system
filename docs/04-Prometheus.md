@@ -38,13 +38,13 @@ groups:
       - record: vid:auth_success:rate5m
         expr: |
           sum by (environment) (
-            rate(vid_auth_attempts_total{result="success"}[5m])
+            rate(auth_success_total[5m])
           )
 
       - record: vid:auth_attempts:rate5m
         expr: |
           sum by (environment) (
-            rate(vid_auth_attempts_total[5m])
+            rate(auth_requests_total[5m])
           )
 
       - record: vid:auth_success_ratio:rate5m
@@ -58,7 +58,7 @@ groups:
           histogram_quantile(
             0.95,
             sum by (environment, le) (
-              rate(vid_auth_request_duration_seconds_bucket[5m])
+              rate(auth_request_duration_seconds_bucket[5m])
             )
           )
 ```

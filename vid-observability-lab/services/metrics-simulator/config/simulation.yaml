@@ -1,0 +1,81 @@
+default_profile: development
+random_seed: 20250730
+noise_ratio: 0.05
+
+load_profiles:
+  development:
+    peak_tps: 20
+  uat:
+    peak_tps: 100
+  production:
+    peak_tps: 500
+  peak:
+    peak_tps: 2000
+
+# Normalized daily curve. The production profile reaches 500 TPS at multiplier 1.
+# Cosine interpolation is applied between points, so traffic never jumps abruptly.
+traffic_schedule:
+  - {time: "00:00", multiplier: 0.017}
+  - {time: "05:00", multiplier: 0.017}
+  - {time: "05:50", multiplier: 0.017}
+  - {time: "06:10", multiplier: 0.267}
+  - {time: "07:50", multiplier: 0.267}
+  - {time: "08:10", multiplier: 1.000}
+  - {time: "08:50", multiplier: 1.000}
+  - {time: "09:10", multiplier: 0.400}
+  - {time: "10:50", multiplier: 0.400}
+  - {time: "11:10", multiplier: 0.200}
+  - {time: "12:50", multiplier: 0.200}
+  - {time: "13:10", multiplier: 0.500}
+  - {time: "16:50", multiplier: 0.500}
+  - {time: "17:10", multiplier: 0.833}
+  - {time: "18:50", multiplier: 0.833}
+  - {time: "20:10", multiplier: 0.133}
+  - {time: "24:00", multiplier: 0.133}
+
+baseline:
+  auth_success_min: 0.9990
+  auth_success_max: 0.9999
+  otp_delivery_min: 0.98
+  otp_delivery_max: 0.99
+  otp_verification_min: 0.85
+  otp_verification_max: 0.95
+  token_success_rate: 0.9995
+  http_5xx_rate: 0.0001
+  auth_latency_p50_seconds: 0.12
+  auth_latency_sigma: 0.64
+  token_latency_p50_seconds: 0.08
+
+events:
+  - name: morning_login_peak
+    start: "08:00"
+    duration_seconds: 3600
+    ramp_seconds: 300
+    effects:
+      traffic_multiplier: 1.35
+      auth_latency_multiplier: 1.15
+  - name: database_slow
+    start: "09:20"
+    duration_seconds: 600
+    effects:
+      auth_success_penalty: 0.12
+      auth_latency_multiplier: 2.4
+      database_latency_multiplier: 4.0
+      database_error_rate: 0.04
+  - name: sms_gateway_failure
+    start: "11:30"
+    duration_seconds: 600
+    effects:
+      otp_delivery_penalty: 0.35
+  - name: redis_restart
+    start: "14:00"
+    duration_seconds: 180
+    effects:
+      token_success_penalty: 0.03
+      token_latency_multiplier: 5.0
+  - name: rolling_deployment
+    start: "16:00"
+    duration_seconds: 120
+    effects:
+      http_5xx_rate: 0.50
+      unavailable_pods: 2

@@ -1,16 +1,67 @@
 {
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "orange",
+        "name": "Sự kiện mô phỏng",
+        "target": {
+          "editorMode": "code",
+          "expr": "simulation_event_active{environment=~\"$environment\",cluster=~\"$cluster\"} == 1",
+          "legendFormat": "{{event}}",
+          "range": true,
+          "refId": "simulation-events"
+        },
+        "type": "dashboard"
+      }
+    ]
   },
-  "description": "Operational view for V-ID SLO, error budget, burn rate and telemetry health.",
+  "description": "Góc nhìn vận hành về SLO, error budget, burn rate và sức khỏe telemetry của V-ID.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
   "links": [
     {
-      "title": "V-ID KPI Overview",
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Overview",
       "type": "link",
       "url": "/d/vid-kpi-overview"
+    },
+    {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Identity & Access",
+      "type": "link",
+      "url": "/d/vid-identity-access"
+    },
+    {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Application Performance",
+      "type": "link",
+      "url": "/d/vid-application-performance"
+    },
+    {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Infrastructure & Database",
+      "type": "link",
+      "url": "/d/vid-infrastructure-database"
     }
   ],
   "panels": [
@@ -19,7 +70,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "1 means Prometheus can scrape the metrics target; 0 means telemetry is unavailable.",
+      "description": "Giá trị 1 nghĩa là Prometheus thu thập được metrics target; giá trị 0 nghĩa là telemetry không khả dụng. Hãy xử lý lỗi telemetry trước khi kết luận dịch vụ gặp sự cố.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -94,7 +145,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Prometheus rule evaluation failures during the selected period.",
+      "description": "Số lần Prometheus đánh giá rule thất bại trong khoảng thời gian đang chọn. Giá trị lớn hơn 0 cho thấy recording rule hoặc alert rule có thể không tạo ra kết quả tin cậy.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -156,7 +207,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Eligible traffic used by each KPI denominator. A zero value makes ratio interpretation unsafe.",
+      "description": "Lưu lượng đủ điều kiện được dùng làm mẫu số của từng KPI. Giá trị bằng 0 hoặc quá thấp khiến việc diễn giải tỷ lệ không an toàn.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -211,7 +262,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Estimated remaining 30-day error budget. KPI-04 is omitted because its SLO is not approved.",
+      "description": "Phần error budget 30 ngày ước tính còn lại. KPI-04 không được hiển thị vì SLO của KPI này chưa được phê duyệt; giá trị âm cho thấy đã sử dụng vượt ngân sách.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -297,7 +348,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "5-minute error-budget consumption rate. Above 1x is unsustainable; above 14.4x participates in fast-burn paging.",
+      "description": "Tốc độ tiêu thụ error budget trong cửa sổ 5 phút. Trên 1 lần là không bền vững; trên 14,4 lần tham gia điều kiện cảnh báo fast-burn.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -353,7 +404,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Current firing and pending alerts for the selected environment and cluster.",
+      "description": "Các cảnh báo đang firing hoặc pending trong môi trường và cụm đang chọn. Sử dụng nhãn severity, service và liên kết runbook để ưu tiên điều tra.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -411,9 +462,10 @@
   "refresh": "5s",
   "schemaVersion": 41,
   "tags": [
-    "v-id",
+    "operations",
     "slo",
-    "operations"
+    "v-id",
+    "vid"
   ],
   "templating": {
     "list": [

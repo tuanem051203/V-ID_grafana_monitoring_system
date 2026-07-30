@@ -6,12 +6,12 @@ Các metric dưới đây phục vụ phát triển và là contract đề xuấ
 
 | Metric | Type | Labels | KPI |
 |---|---|---|---|
-| `vid_auth_attempts_total` | Counter | environment, service, result, realm, method | KPI-01 |
-| `vid_auth_request_duration_seconds` | Histogram | environment, service, operation | KPI-02 |
-| `vid_otp_delivery_total` | Counter | environment, channel, result, country, provider | KPI-03 |
-| `vid_otp_verification_total` | Counter | environment, result, reason | KPI-04 |
-| `vid_token_issuance_total` | Counter | environment, issuer, result, grant_type | KPI-05 |
-| `vid_http_requests_total` | Counter | environment, service, operation, status_class | KPI-06 |
+| `auth_requests_total`, `auth_success_total`, `auth_failed_total` | Counter | environment, cluster, client_type, reason | KPI-01 |
+| `auth_request_duration_seconds` | Histogram | environment, cluster, result, client_type | KPI-02 |
+| `otp_send_total`, `otp_delivery_success_total`, `otp_delivery_failed_total` | Counter | environment, cluster, channel, provider, reason | KPI-03 |
+| `otp_verify_total`, `otp_verify_success_total`, `otp_verify_failed_total` | Counter | environment, cluster, channel, reason | KPI-04 |
+| `token_request_total`, `token_issue_total`, `token_failed_total` | Counter | environment, cluster, token_type, grant_type, reason | KPI-05 |
+| `http_requests_total`, `http_requests_5xx_total` | Counter | environment, cluster, service, endpoint, method, critical | KPI-06 |
 
 Metric bổ trợ:
 
@@ -83,21 +83,21 @@ dependency_error | timeout | internal_error | unknown
 ## 5. Ví dụ instrumentation
 
 ```text
-vid_auth_attempts_total{
+auth_success_total{
   environment="uat",
-  service="identity-provider",
-  result="success",
-  realm="consumer",
-  method="otp"
+  cluster="cluster-a",
+  client_type="mobile"
 } 12345
 ```
 
 ```text
-vid_http_requests_total{
+http_requests_total{
   environment="uat",
-  service="identity-provider",
-  operation="login",
-  status_class="2xx"
+  cluster="cluster-a",
+  service="auth-service",
+  endpoint="/authenticate",
+  method="POST",
+  critical="true"
 } 23456
 ```
 

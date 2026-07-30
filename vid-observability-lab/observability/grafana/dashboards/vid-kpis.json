@@ -4,13 +4,20 @@
       {
         "builtIn": 1,
         "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
+          "type": "prometheus",
+          "uid": "prometheus"
         },
         "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
+        "hide": false,
+        "iconColor": "orange",
+        "name": "Sự kiện mô phỏng",
+        "target": {
+          "editorMode": "code",
+          "expr": "simulation_event_active{environment=~\"$environment\",cluster=~\"$cluster\"} == 1",
+          "legendFormat": "{{event}}",
+          "range": true,
+          "refId": "simulation-events"
+        },
         "type": "dashboard"
       }
     ]
@@ -22,6 +29,37 @@
   "id": null,
   "links": [
     {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Identity & Access",
+      "type": "link",
+      "url": "/d/vid-identity-access"
+    },
+    {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Application Performance",
+      "type": "link",
+      "url": "/d/vid-application-performance"
+    },
+    {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Infrastructure & Database",
+      "type": "link",
+      "url": "/d/vid-infrastructure-database"
+    },
+    {
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
       "title": "SLO & Operations",
       "type": "link",
       "url": "/d/vid-slo-operations"
@@ -34,7 +72,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ authentication thành công. Target >= 99.9%.",
+      "description": "Tỷ lệ xác thực thành công trên lưu lượng đủ điều kiện trong cửa sổ 5 phút. Mục tiêu đề xuất: từ 99,9% trở lên.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -107,7 +145,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ authentication hoàn thành dưới 500 ms. Target >= 95%.",
+      "description": "Tỷ lệ yêu cầu xác thực đủ điều kiện hoàn thành dưới 500 mili giây trong cửa sổ 5 phút. Mục tiêu đề xuất: từ 95% trở lên.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -180,7 +218,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ gửi OTP thành công, không tính trạng thái pending. Target >= 95%.",
+      "description": "Tỷ lệ gửi OTP thành công trên các kết quả kết thúc đủ điều kiện trong cửa sổ 5 phút; không tính trạng thái đang chờ và lỗi phía client. Mục tiêu đề xuất: từ 95% trở lên.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -253,7 +291,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ xác minh OTP thành công. KPI baseline, chưa áp target chính thức.",
+      "description": "Tỷ lệ xác minh OTP thành công trên tổng số lần xác minh kết thúc trong cửa sổ 5 phút. Đây là KPI đường cơ sở và chưa có mục tiêu SLO chính thức.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -319,7 +357,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ phát hành token thành công. Target >= 99.9%.",
+      "description": "Tỷ lệ phát hành token thành công trên các kết quả kỹ thuật đủ điều kiện trong cửa sổ 5 phút; không tính invalid_grant. Mục tiêu đề xuất: từ 99,9% trở lên.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -392,7 +430,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ critical request không gặp lỗi 5xx. Target >= 99.9%.",
+      "description": "Tỷ lệ request quan trọng không gặp lỗi HTTP 5xx trong cửa sổ 5 phút. Mục tiêu đề xuất: từ 99,9% trở lên.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -465,7 +503,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Xu hướng của toàn bộ KPI theo thời gian.",
+      "description": "Xu hướng của cả 6 KPI trong cửa sổ 5 phút. Sử dụng để xác định thời điểm và phạm vi suy giảm; các đường gần 100% có thể chồng lên nhau.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -594,7 +632,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Phân vị p50, p95 và p99 của authentication latency.",
+      "description": "Các phân vị p50, p95 và p99 của thời gian xử lý xác thực đủ điều kiện, được tính từ histogram trong cửa sổ 5 phút.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -673,21 +711,21 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(vid_auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\",reason=~\"none|system_error\"}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
           "legendFormat": "p50",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(vid_auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\",reason=~\"none|system_error\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
           "legendFormat": "p95",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(vid_auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\",reason=~\"none|system_error\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
           "legendFormat": "p99",
           "range": true,
           "refId": "C"
@@ -701,7 +739,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Lưu lượng request theo nhóm nghiệp vụ.",
+      "description": "Số yêu cầu mỗi giây theo từng nhóm nghiệp vụ trong cửa sổ 5 phút. Kiểm tra lưu lượng trước khi diễn giải tỷ lệ KPI để tránh kết luận từ dữ liệu quá ít hoặc không có dữ liệu.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -776,28 +814,28 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(vid_auth_requests_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "expr": "sum(rate(auth_requests_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
           "legendFormat": "Authentication",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "sum(rate(vid_otp_send_attempts_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "OTP delivery",
+          "expr": "sum(rate(otp_send_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "OTP Send",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "sum(rate(vid_otp_verification_attempts_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "OTP verification",
+          "expr": "sum(rate(otp_verify_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "OTP Verify",
           "range": true,
           "refId": "C"
         },
         {
           "editorMode": "code",
-          "expr": "sum(rate(vid_token_requests_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "expr": "sum(rate(token_request_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
           "legendFormat": "Token",
           "range": true,
           "refId": "D"
@@ -811,7 +849,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Số OTP đang chờ gửi.",
+      "description": "Số OTP hiện đang chờ được gửi. Giá trị tăng kéo dài có thể cho thấy provider chậm, lỗi hoặc năng lực xử lý không đủ.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -867,7 +905,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "vid_otp_queue_size{environment=~\"$environment\",cluster=~\"$cluster\"}",
+          "expr": "otp_queue_size{environment=~\"$environment\",cluster=~\"$cluster\"}",
           "legendFormat": "Queue size",
           "range": true,
           "refId": "A"
@@ -881,7 +919,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Trạng thái từng OTP provider: UP hoặc DOWN.",
+      "description": "Trạng thái mới nhất của từng OTP provider: UP bằng 1 và DOWN bằng 0. Provider DOWN có thể làm giảm KPI gửi OTP và làm tăng hàng đợi.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -950,7 +988,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "vid_otp_provider_status{environment=~\"$environment\",cluster=~\"$cluster\"}",
+          "expr": "otp_provider_status{environment=~\"$environment\",cluster=~\"$cluster\"}",
           "legendFormat": "{{provider}}",
           "range": true,
           "refId": "A"
@@ -964,7 +1002,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tỷ lệ lỗi hệ thống 5xx theo service.",
+      "description": "Phần trăm request quan trọng trả về lỗi HTTP 5xx theo từng dịch vụ trong cửa sổ 5 phút. Giá trị tăng cho thấy suy giảm phía server.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1040,7 +1078,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * sum by (service) (rate(vid_http_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",critical=\"true\",status_code=~\"5..\"}[5m])) / clamp_min(sum by (service) (rate(vid_http_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",critical=\"true\"}[5m])), 1e-9)",
+          "expr": "100 * sum by (service) (rate(http_requests_5xx_total{environment=~\"$environment\",cluster=~\"$cluster\",critical=\"true\"}[5m])) / clamp_min(sum by (service) (rate(http_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",critical=\"true\"}[5m])), 1e-9)",
           "legendFormat": "{{service}}",
           "range": true,
           "refId": "A"
@@ -1053,9 +1091,10 @@
   "refresh": "5s",
   "schemaVersion": 41,
   "tags": [
-    "v-id",
     "kpi",
-    "mock-metrics"
+    "mock-metrics",
+    "v-id",
+    "vid"
   ],
   "templating": {
     "list": [
@@ -1131,7 +1170,7 @@
     ]
   },
   "timezone": "browser",
-  "title": "V-ID — 6 KPI Overview",
+  "title": "V-ID — Overview",
   "uid": "vid-kpi-overview",
   "version": 1,
   "weekStart": ""

@@ -11,17 +11,17 @@ metrics V-ID thật chưa sẵn sàng.
 ## Kiến trúc
 
 ```text
-Metrics generator (5 giây) -> FastAPI /metrics <- Prometheus <- Grafana
-                              /health             |
-                              /api/scenario       +--> Recording/alert rules
+Metrics generator (5 giây) -> FastAPI /metrics    <- Prometheus <- Grafana
+                              /health                |
+                              /api/simulation        +--> Recording/alert rules
                                                          |
                                                          v
                                                     Alertmanager
 ```
 
 Service không dùng database, Kafka hay OpenTelemetry. Counter chỉ tăng trong vòng
-đời process; đổi scenario không reset Counter. Dữ liệu được phân bổ theo tỷ lệ
-cấu hình và dao động gauge theo chu kỳ thay vì random hoàn toàn.
+đời process. Traffic thay đổi mượt theo giờ, latency dùng phân phối log-normal và
+incident tự kích hoạt rồi phục hồi mà không reset Counter.
 
 ## Cấu trúc repository
 
@@ -52,36 +52,42 @@ Quyết định cấu trúc và phần còn thiếu cho production được ghi 
 
 ## 6 KPI
 
-| KPI | Eligible denominator | Target đề xuất |
-|---|---|---|
-| Authentication success | success + technical `system_error`; loại business rejection | >= 99.9% / 30d |
-| Authentication latency dưới 500 ms | eligible auth histogram count | >= 95% / 30d |
-| OTP delivery success | delivered + provider/timeout failure; loại pending/client error | >= 95% / 30d |
-| OTP verification success | mọi terminal attempt | Baseline, chưa alert |
-| Token issuance success | issued + signing/storage/system failure; loại invalid grant | >= 99.9% / 30d |
-| Platform availability | critical terminal request | >= 99.9% / 30d |
+| KPI                                  | Raw metric denominator                                | Target đề xuất     |
+| ------------------------------------ | ----------------------------------------------------- | --------------------- |
+| Authentication success               | `auth_success_total / auth_requests_total`          | >= 99.9% / 30d        |
+| Authentication latency dưới 500 ms | bucket`le="0.5"` / histogram count                  | >= 95% / 30d          |
+| OTP delivery success                 | `otp_delivery_success_total / otp_send_total`       | >= 95% / 30d          |
+| OTP verification success             | `otp_verify_success_total / otp_verify_total`       | Baseline, chưa alert |
+| Token issuance success               | `token_issue_total / token_request_total`           | >= 99.9% / 30d        |
+| Platform availability                | `1 - http_requests_5xx_total / http_requests_total` | >= 99.9% / 30d        |
 
 Định nghĩa đầy đủ, exclusion và quyết định còn phải được owner duyệt nằm trong
 [`docs/KPI-CONTRACT.md`](docs/KPI-CONTRACT.md).
 
 ## Metrics
 
-- Counter: `vid_auth_requests_total`, `vid_otp_send_attempts_total`,
-  `vid_otp_verification_attempts_total`, `vid_token_requests_total`,
-  `vid_http_requests_total`.
-- Histogram: `vid_auth_request_duration_seconds` với label bounded `result`,
-  `client_type`, `reason` và bucket `0.05`, `0.1`, `0.2`, `0.3`, `0.5`,
-  `0.75`, `1`, `2`, `5`.
-- Gauge: `vid_auth_requests_in_progress`, `vid_otp_queue_size`,
-  `vid_token_requests_in_progress`, `vid_otp_provider_status`.
+- Authentication: `auth_requests_total`, `auth_success_total`,
+  `auth_failed_total`, `auth_request_duration_seconds`.
+- OTP: `otp_send_total`, `otp_delivery_success_total`,
+  `otp_delivery_failed_total`, `otp_verify_total`,
+  `otp_verify_success_total`, `otp_verify_failed_total`.
+- Token: `token_request_total`, `token_issue_total`, `token_failed_total`,
+  `token_request_duration_seconds`.
+- Platform: `http_requests_total`, `http_requests_5xx_total`,
+  `http_request_duration_seconds`.
+- Metric hỗ trợ: authorization, application error, infrastructure, pod,
+  database, provider, queue và trạng thái simulation.
 
 `environment` và `cluster` được Prometheus gắn từ scrape/service discovery.
 Không có user ID, request ID, PII, raw URL hoặc label cardinality cao.
+Các metric trên bao phủ tám nhóm Availability, Authentication, Performance,
+Authorization, Traffic, Errors, Infrastructure và Database.
 
 ## Chạy local/UAT
 
 ```bash
 export GRAFANA_ADMIN_PASSWORD='change-me'
+export VID_LOAD_PROFILE='development'
 docker compose -f deployments/local/docker-compose.yml up --build -d
 docker compose -f deployments/local/docker-compose.yml ps
 curl http://localhost:8000/health
@@ -95,14 +101,20 @@ Các URL:
 - Grafana: http://localhost:3000
 - Alertmanager: http://localhost:9093
 
-Prometheus datasource và hai dashboard được provision tự động:
+Prometheus datasource và năm dashboard được provision tự động:
 
-- **V-ID — 6 KPI Overview**: KPI, trend, latency, traffic và symptom.
+- **V-ID — Overview**: KPI, trend, latency, traffic và symptom.
+- **V-ID — Identity & Access**: authentication, OTP, token và authorization.
+- **V-ID — Application Performance**: HTTP latency, traffic và application
+  error.
+- **V-ID — Infrastructure & Database**: tài nguyên node/pod, database latency,
+  connection và error.
 - **V-ID — SLO & Operations**: telemetry health, eligible traffic, error budget,
   burn rate và active alerts.
 
 Datasource dùng UID ổn định `prometheus` và URL Docker nội bộ
-`http://prometheus:9090`. Dashboard hỗ trợ filter `environment` và `cluster`.
+`http://prometheus:9090`. Dashboard hỗ trợ filter `environment`, `cluster` và
+giữ nguyên filter/time range khi chuyển qua các dashboard chi tiết.
 
 Có thể chạy riêng mock service bằng Python 3.11+:
 
@@ -114,20 +126,18 @@ pip install -e .
 PYTHONPATH=src uvicorn vid_mock_metrics.main:app --host 0.0.0.0 --port 8000
 ```
 
-## Scenario
-
-Các profile: `normal`, `auth_slow`, `otp_provider_incident`,
-`platform_incident`.
+## Traffic profile và thời gian mô phỏng
 
 ```bash
-curl http://localhost:8000/api/scenario
-curl -X POST http://localhost:8000/api/scenario/auth_slow
-curl -X POST http://localhost:8000/api/scenario/normal
+VID_LOAD_PROFILE=uat \
+  docker compose -f deployments/local/docker-compose.yml up --build -d
+curl http://localhost:8000/api/simulation
 ```
 
-Đổi scenario không reset Counter. Scenario không hợp lệ trả HTTP 404. Cấu hình
-lưu lượng/tỷ lệ nằm tại
-`services/metrics-simulator/config/scenarios.yaml`.
+Các profile `development`, `uat`, `production`, `peak` lần lượt có peak 20, 100,
+500 và 2000 TPS. `VID_SIMULATION_DAY_SECONDS=3600` nén một ngày mô phỏng vào một
+giờ để demo toàn bộ incident. Traffic curve, baseline và event nằm tại
+`services/metrics-simulator/config/simulation.yaml`.
 
 ## PromQL
 
@@ -156,9 +166,7 @@ Raw auth p95 cho eligible traffic:
 histogram_quantile(
   0.95,
   sum by (le) (
-    rate(vid_auth_request_duration_seconds_bucket{
-      reason=~"none|system_error"
-    }[5m])
+    rate(auth_request_duration_seconds_bucket[5m])
   )
 )
 ```
@@ -193,7 +201,7 @@ không đạt.
 5. Cấu hình HA, retention, persistent storage, backup và capacity.
 6. Thay placeholder dashboard/runbook URL và cấu hình notification route.
 7. Test normal, degradation, counter reset, no-data và low traffic.
-8. Triển khai UAT, diễn tập scenario, lưu evidence rồi mới promote production.
+8. Triển khai UAT, diễn tập lịch event, lưu evidence rồi mới promote production.
 
 Dữ liệu mock không đại diện cho production baseline và không được dùng để tự
 phê duyệt SLO hoặc capacity.

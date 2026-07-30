@@ -2,95 +2,84 @@ groups:
   - name: vid-kpi-short-window
     interval: 30s
     rules:
-      # KPI-01 excludes business/user rejections. Eligible failures are
-      # system_error only; successes carry reason="none".
+      # KPI-01 uses all authentication requests as the denominator.
       - record: vid:kpi_authentication_success:ratio5m
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_requests_total{result="success"}[5m])
+            rate(auth_success_total[5m])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_auth_requests_total{reason=~"none|system_error"}[5m])
+              rate(auth_requests_total[5m])
             ),
             1e-9
           )
       - record: vid:kpi_authentication_success:ratio1h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_requests_total{result="success"}[1h])
+            rate(auth_success_total[1h])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_auth_requests_total{reason=~"none|system_error"}[1h])
+              rate(auth_requests_total[1h])
             ),
             1e-9
           )
 
-      # KPI-02 is service latency for eligible authentication traffic.
+      # KPI-02 is the share of authentication requests completed under 500 ms.
       - record: vid:kpi_authentication_latency_under_500ms:ratio5m
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_bucket{
-              le="0.5",reason=~"none|system_error"
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
             }[5m])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_auth_request_duration_seconds_count{
-                reason=~"none|system_error"
-              }[5m])
+              rate(auth_request_duration_seconds_count[5m])
             ),
             1e-9
           )
       - record: vid:kpi_authentication_latency_under_500ms:ratio1h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_bucket{
-              le="0.5",reason=~"none|system_error"
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
             }[1h])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_auth_request_duration_seconds_count{
-                reason=~"none|system_error"
-              }[1h])
+              rate(auth_request_duration_seconds_count[1h])
             ),
             1e-9
           )
 
-      # KPI-03 excludes invalid destination and client-side rate limiting.
+      # KPI-03 compares successful deliveries with all provider send attempts.
       - record: vid:kpi_otp_delivery_success:ratio5m
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{result="delivered"}[5m])
+            rate(otp_delivery_success_total[5m])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_otp_send_attempts_total{
-                result=~"delivered|failed",
-                reason=~"none|provider_error|timeout"
-              }[5m])
+              rate(otp_send_total[5m])
             ),
             1e-9
           )
       - record: vid:kpi_otp_delivery_success:ratio1h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{result="delivered"}[1h])
+            rate(otp_delivery_success_total[1h])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_otp_send_attempts_total{
-                result=~"delivered|failed",
-                reason=~"none|provider_error|timeout"
-              }[1h])
+              rate(otp_send_total[1h])
             ),
             1e-9
           )
@@ -100,54 +89,50 @@ groups:
       - record: vid:kpi_otp_verification_success:ratio5m
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total{result="success"}[5m])
+            rate(otp_verify_success_total[5m])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_otp_verification_attempts_total[5m])
+              rate(otp_verify_total[5m])
             ),
             1e-9
           )
       - record: vid:kpi_otp_verification_success:ratio1h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total{result="success"}[1h])
+            rate(otp_verify_success_total[1h])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_otp_verification_attempts_total[1h])
+              rate(otp_verify_total[1h])
             ),
             1e-9
           )
 
-      # KPI-05 excludes protocol/business rejection invalid_grant.
+      # KPI-05 compares issued tokens with all token requests.
       - record: vid:kpi_token_issuance_success:ratio5m
         expr: |
           sum by (environment, cluster) (
-            rate(vid_token_requests_total{result="issued"}[5m])
+            rate(token_issue_total[5m])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_token_requests_total{
-                reason=~"none|signing_error|storage_error|system_error"
-              }[5m])
+              rate(token_request_total[5m])
             ),
             1e-9
           )
       - record: vid:kpi_token_issuance_success:ratio1h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_token_requests_total{result="issued"}[1h])
+            rate(token_issue_total[1h])
           )
           /
           clamp_min(
             sum by (environment, cluster) (
-              rate(vid_token_requests_total{
-                reason=~"none|signing_error|storage_error|system_error"
-              }[1h])
+              rate(token_request_total[1h])
             ),
             1e-9
           )
@@ -155,65 +140,52 @@ groups:
       # KPI-06 measures critical traffic and treats only 5xx as unavailable.
       - record: vid:kpi_platform_availability:ratio5m
         expr: |
-          sum by (environment, cluster) (
-            rate(vid_http_requests_total{
-              critical="true",status_code!~"5.."
-            }[5m])
-          )
-          /
-          clamp_min(
+          1 - (
             sum by (environment, cluster) (
-              rate(vid_http_requests_total{critical="true"}[5m])
-            ),
-            1e-9
+              rate(http_requests_5xx_total{critical="true"}[5m])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[5m])
+            ), 1e-9)
           )
       - record: vid:kpi_platform_availability:ratio1h
         expr: |
-          sum by (environment, cluster) (
-            rate(vid_http_requests_total{
-              critical="true",status_code!~"5.."
-            }[1h])
-          )
-          /
-          clamp_min(
+          1 - (
             sum by (environment, cluster) (
-              rate(vid_http_requests_total{critical="true"}[1h])
-            ),
-            1e-9
+              rate(http_requests_5xx_total{critical="true"}[1h])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[1h])
+            ), 1e-9)
           )
 
       - record: vid:eligible_requests:rate5m
         expr: |
           sum by (environment, cluster, kpi) (
             label_replace(
-              rate(vid_auth_requests_total{
-                reason=~"none|system_error"
-              }[5m]),
+              rate(auth_requests_total[5m]),
               "kpi", "authentication", "", ""
             )
             or
             label_replace(
-              rate(vid_otp_send_attempts_total{
-                result=~"delivered|failed",
-                reason=~"none|provider_error|timeout"
-              }[5m]),
+              rate(otp_send_total[5m]),
               "kpi", "otp_delivery", "", ""
             )
             or
             label_replace(
-              rate(vid_otp_verification_attempts_total[5m]),
+              rate(otp_verify_total[5m]),
               "kpi", "otp_verification", "", ""
             )
             or
             label_replace(
-              rate(vid_token_requests_total{
-                reason=~"none|signing_error|storage_error|system_error"
-              }[5m]),
+              rate(token_request_total[5m]),
               "kpi", "token_issuance", "", ""
             )
             or
             label_replace(
-              rate(vid_http_requests_total{critical="true"}[5m]),
+              rate(http_requests_total{critical="true"}[5m]),
               "kpi", "platform", "", ""
             )
           )
@@ -224,203 +196,182 @@ groups:
       - record: vid:kpi_authentication_success:ratio6h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_requests_total{result="success"}[6h])
+            rate(auth_success_total[6h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_auth_requests_total{reason=~"none|system_error"}[6h])
+            rate(auth_requests_total[6h])
           ), 1e-9)
       - record: vid:kpi_authentication_success:ratio24h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_requests_total{result="success"}[24h])
+            rate(auth_success_total[24h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_auth_requests_total{reason=~"none|system_error"}[24h])
+            rate(auth_requests_total[24h])
           ), 1e-9)
       - record: vid:kpi_authentication_success:ratio30d
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_requests_total{result="success"}[30d])
+            rate(auth_success_total[30d])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_auth_requests_total{reason=~"none|system_error"}[30d])
+            rate(auth_requests_total[30d])
           ), 1e-9)
 
       - record: vid:kpi_authentication_latency_under_500ms:ratio6h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_bucket{
-              le="0.5",reason=~"none|system_error"
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
             }[6h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_count{
-              reason=~"none|system_error"
-            }[6h])
+            rate(auth_request_duration_seconds_count[6h])
           ), 1e-9)
       - record: vid:kpi_authentication_latency_under_500ms:ratio24h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_bucket{
-              le="0.5",reason=~"none|system_error"
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
             }[24h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_count{
-              reason=~"none|system_error"
-            }[24h])
+            rate(auth_request_duration_seconds_count[24h])
           ), 1e-9)
       - record: vid:kpi_authentication_latency_under_500ms:ratio30d
         expr: |
           sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_bucket{
-              le="0.5",reason=~"none|system_error"
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
             }[30d])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_auth_request_duration_seconds_count{
-              reason=~"none|system_error"
-            }[30d])
+            rate(auth_request_duration_seconds_count[30d])
           ), 1e-9)
 
       - record: vid:kpi_otp_delivery_success:ratio6h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{result="delivered"}[6h])
+            rate(otp_delivery_success_total[6h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{
-              result=~"delivered|failed",
-              reason=~"none|provider_error|timeout"
-            }[6h])
+            rate(otp_send_total[6h])
           ), 1e-9)
       - record: vid:kpi_otp_delivery_success:ratio24h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{result="delivered"}[24h])
+            rate(otp_delivery_success_total[24h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{
-              result=~"delivered|failed",
-              reason=~"none|provider_error|timeout"
-            }[24h])
+            rate(otp_send_total[24h])
           ), 1e-9)
       - record: vid:kpi_otp_delivery_success:ratio30d
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{result="delivered"}[30d])
+            rate(otp_delivery_success_total[30d])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_otp_send_attempts_total{
-              result=~"delivered|failed",
-              reason=~"none|provider_error|timeout"
-            }[30d])
+            rate(otp_send_total[30d])
           ), 1e-9)
 
       - record: vid:kpi_otp_verification_success:ratio6h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total{result="success"}[6h])
+            rate(otp_verify_success_total[6h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total[6h])
+            rate(otp_verify_total[6h])
           ), 1e-9)
       - record: vid:kpi_otp_verification_success:ratio24h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total{result="success"}[24h])
+            rate(otp_verify_success_total[24h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total[24h])
+            rate(otp_verify_total[24h])
           ), 1e-9)
       - record: vid:kpi_otp_verification_success:ratio30d
         expr: |
           sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total{result="success"}[30d])
+            rate(otp_verify_success_total[30d])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_otp_verification_attempts_total[30d])
+            rate(otp_verify_total[30d])
           ), 1e-9)
 
       - record: vid:kpi_token_issuance_success:ratio6h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_token_requests_total{result="issued"}[6h])
+            rate(token_issue_total[6h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_token_requests_total{
-              reason=~"none|signing_error|storage_error|system_error"
-            }[6h])
+            rate(token_request_total[6h])
           ), 1e-9)
       - record: vid:kpi_token_issuance_success:ratio24h
         expr: |
           sum by (environment, cluster) (
-            rate(vid_token_requests_total{result="issued"}[24h])
+            rate(token_issue_total[24h])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_token_requests_total{
-              reason=~"none|signing_error|storage_error|system_error"
-            }[24h])
+            rate(token_request_total[24h])
           ), 1e-9)
       - record: vid:kpi_token_issuance_success:ratio30d
         expr: |
           sum by (environment, cluster) (
-            rate(vid_token_requests_total{result="issued"}[30d])
+            rate(token_issue_total[30d])
           )
           /
           clamp_min(sum by (environment, cluster) (
-            rate(vid_token_requests_total{
-              reason=~"none|signing_error|storage_error|system_error"
-            }[30d])
+            rate(token_request_total[30d])
           ), 1e-9)
 
       - record: vid:kpi_platform_availability:ratio6h
         expr: |
-          sum by (environment, cluster) (
-            rate(vid_http_requests_total{
-              critical="true",status_code!~"5.."
-            }[6h])
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[6h])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[6h])
+            ), 1e-9)
           )
-          /
-          clamp_min(sum by (environment, cluster) (
-            rate(vid_http_requests_total{critical="true"}[6h])
-          ), 1e-9)
       - record: vid:kpi_platform_availability:ratio24h
         expr: |
-          sum by (environment, cluster) (
-            rate(vid_http_requests_total{
-              critical="true",status_code!~"5.."
-            }[24h])
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[24h])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[24h])
+            ), 1e-9)
           )
-          /
-          clamp_min(sum by (environment, cluster) (
-            rate(vid_http_requests_total{critical="true"}[24h])
-          ), 1e-9)
       - record: vid:kpi_platform_availability:ratio30d
         expr: |
-          sum by (environment, cluster) (
-            rate(vid_http_requests_total{
-              critical="true",status_code!~"5.."
-            }[30d])
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[30d])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[30d])
+            ), 1e-9)
           )
-          /
-          clamp_min(sum by (environment, cluster) (
-            rate(vid_http_requests_total{critical="true"}[30d])
-          ), 1e-9)
 
   - name: vid-slo-error-budget
     interval: 30s

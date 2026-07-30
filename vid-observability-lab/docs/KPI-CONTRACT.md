@@ -5,12 +5,12 @@ production. `TBD` is a release blocker, not an optional field.
 
 | KPI | Owner | Good events | Eligible events | Exclusions | SLO/window |
 |---|---|---|---|---|---|
-| Authentication success | TBD: Auth owner | `result="success"` | `reason=~"none|system_error"` | invalid credential, locked, expired | 99.9% / rolling 30d |
-| Authentication latency | TBD: Auth owner | eligible histogram bucket `le="0.5"` | eligible histogram count | business/user rejection | 95% / rolling 30d |
-| OTP delivery | TBD: OTP owner | `result="delivered"` | terminal result with `none`, `provider_error`, `timeout` | pending, invalid destination, client rate limit | 95% / 24h and 30d |
-| OTP verification | TBD: OTP owner | `result="success"` | all terminal verification attempts | none for product baseline | baseline; no SLO alert |
-| Token issuance | TBD: Token owner | `result="issued"` | `none`, signing, storage and system outcomes | `invalid_grant` | 99.9% / rolling 30d |
-| Platform availability | TBD: Platform owner | critical non-5xx | all critical terminal requests | non-critical endpoints | 99.9% / rolling 30d |
+| Authentication success | TBD: Auth owner | `auth_success_total` | `auth_requests_total` | none in simulator baseline | 99.9% / rolling 30d |
+| Authentication latency | TBD: Auth owner | histogram bucket `le="0.5"` | histogram count | none in simulator baseline | 95% / rolling 30d |
+| OTP delivery | TBD: OTP owner | `otp_delivery_success_total` | `otp_send_total` | none in simulator baseline | 95% / 24h and 30d |
+| OTP verification | TBD: OTP owner | `otp_verify_success_total` | `otp_verify_total` | none for product baseline | baseline; no SLO alert |
+| Token issuance | TBD: Token owner | `token_issue_total` | `token_request_total` | none in simulator baseline | 99.9% / rolling 30d |
+| Platform availability | TBD: Platform owner | total minus `http_requests_5xx_total` | `http_requests_total` | non-critical endpoints | 99.9% / rolling 30d |
 
 ## Decision log required before production
 
