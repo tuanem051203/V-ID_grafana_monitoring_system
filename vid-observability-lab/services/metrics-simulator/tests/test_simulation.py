@@ -148,6 +148,12 @@ class MetricsGeneratorTest(unittest.TestCase):
         )
         generator = MetricsGenerator(settings)
         before = generator.generate_at(559 * 60)
+        healthy_exposition = generate_latest(REGISTRY).decode()
+        self.assertIn(
+            'application_errors_total{error_type="database_dependency",'
+            'service="auth-service",severity="critical"} 0.0',
+            healthy_exposition,
+        )
         active = generator.generate_at(560 * 60)
         recovered = generator.generate_at(570 * 60)
         self.assertEqual(before.active_events, ())

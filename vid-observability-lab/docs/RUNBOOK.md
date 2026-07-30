@@ -6,9 +6,9 @@ base URL before production.
 ## First response for every alert
 
 1. Confirm `environment`, `cluster`, `service`, alert start time and user impact.
-2. Open **V-ID — SLO & Operations** and check target health, eligible traffic,
+2. Open **V-ID SSO — SLO & Sự cố** and check target health, eligible traffic,
    active alerts and rule evaluation failures.
-3. If telemetry is healthy, open **V-ID — Overview** and identify the
+3. If telemetry is healthy, open **V-ID SSO — Tổng quan** and identify the
    affected reason/provider/endpoint.
 4. Check the most recent deployment and configuration changes.
 5. Apply only an approved mitigation; record timestamps and evidence.

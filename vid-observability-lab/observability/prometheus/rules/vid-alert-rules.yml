@@ -12,7 +12,7 @@ groups:
         annotations:
           summary: "V-ID metrics target is down"
           description: "Prometheus cannot scrape {{ $labels.instance }} in {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-reliability"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/metrics-target-down"
 
       - alert: VIDRecordingRulesFailing
@@ -25,7 +25,7 @@ groups:
         annotations:
           summary: "Prometheus recording rule evaluation is failing"
           description: "Prometheus {{ $labels.instance }} reported rule evaluation failures."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-reliability"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/rule-evaluation-failure"
 
       - alert: VIDEligibleTrafficMissing
@@ -41,7 +41,7 @@ groups:
         annotations:
           summary: "No eligible V-ID traffic"
           description: "No eligible KPI traffic has been observed for 10 minutes. Check traffic, instrumentation and scrape health."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-reliability"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/no-eligible-traffic"
 
   - name: vid-slo-burn-rate
@@ -62,7 +62,7 @@ groups:
         annotations:
           summary: "Authentication success SLO is burning fast"
           description: "Error budget burn rate is above 14.4x on both 5m and 1h windows for {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-authentication"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/authentication-success"
 
       - alert: VIDAuthenticationLatencyFastBurn
@@ -79,7 +79,7 @@ groups:
         annotations:
           summary: "Authentication latency SLO is burning fast"
           description: "The under-500ms error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-authentication"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/authentication-latency"
 
       - alert: VIDOTPDeliveryFastBurn
@@ -96,7 +96,7 @@ groups:
         annotations:
           summary: "OTP delivery SLO is burning fast"
           description: "OTP delivery error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-mfa-otp"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-delivery"
 
       - alert: VIDTokenIssuanceFastBurn
@@ -113,7 +113,7 @@ groups:
         annotations:
           summary: "Token issuance SLO is burning fast"
           description: "Token issuance error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-token-lifecycle"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/token-issuance"
 
       - alert: VIDPlatformAvailabilityFastBurn
@@ -130,7 +130,7 @@ groups:
         annotations:
           summary: "Platform availability SLO is burning fast"
           description: "Platform availability error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-platform"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/platform-availability"
 
       # Slow burn opens a ticket/warning instead of paging.
@@ -173,7 +173,7 @@ groups:
         annotations:
           summary: "A V-ID SLO is experiencing sustained slow burn"
           description: "Error budget burn is above 6x on both 1h and 6h windows. Inspect the SLO dashboard to identify the affected KPI."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-reliability"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/slo-slow-burn"
 
   - name: vid-symptoms
@@ -189,7 +189,7 @@ groups:
         annotations:
           summary: "OTP provider {{ $labels.provider }} is down"
           description: "Provider {{ $labels.provider }} reports DOWN in {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-mfa-otp"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-provider-down"
 
       - alert: VIDOTPQueueBacklog
@@ -202,5 +202,5 @@ groups:
         annotations:
           summary: "OTP queue backlog is high"
           description: "OTP queue has {{ $value }} messages in {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/vid-kpi-overview"
+          dashboard_url: "http://localhost:3000/d/sso-mfa-otp"
           runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-queue-backlog"

@@ -301,6 +301,16 @@ class MetricsGenerator:
     def _generate_supporting_metrics(
         self, auth_count: int, tps: float, effects: EventEffects
     ) -> None:
+        # Pre-create every bounded error series so Grafana shows a healthy zero
+        # instead of "No data" before the first scheduled incident.
+        application_error_series = (
+            ("auth-service", "database_dependency", "critical"),
+            ("otp-service", "provider_error", "critical"),
+            ("token-service", "cache_dependency", "critical"),
+        )
+        for service, error_type, severity in application_error_series:
+            APPLICATION_ERRORS.labels(service, error_type, severity).inc(0)
+
         allowed, denied = self._random.split(auth_count, (0.985, 0.015))
         AUTHORIZATION_DECISIONS.labels("identity", "allow", "policy_match").inc(allowed)
         AUTHORIZATION_DECISIONS.labels(

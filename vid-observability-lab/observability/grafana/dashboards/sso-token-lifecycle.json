@@ -22,46 +22,22 @@
       }
     ]
   },
-  "description": "Giám sát xác thực, OTP, phát hành token và phân quyền.",
+  "description": "Theo dõi yêu cầu, phát hành, lỗi và latency của access token, refresh token và ID token.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "links": [
     {
+      "asDropdown": true,
       "icon": "external link",
       "includeVars": true,
       "keepTime": true,
+      "tags": [
+        "sso"
+      ],
       "targetBlank": false,
-      "title": "Overview",
-      "type": "link",
-      "url": "/d/vid-kpi-overview"
-    },
-    {
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Application Performance",
-      "type": "link",
-      "url": "/d/vid-application-performance"
-    },
-    {
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Infrastructure & Database",
-      "type": "link",
-      "url": "/d/vid-infrastructure-database"
-    },
-    {
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "SLO & Operations",
-      "type": "link",
-      "url": "/d/vid-slo-operations"
+      "title": "SSO dashboards",
+      "type": "dashboards"
     }
   ],
   "panels": [
@@ -73,11 +49,224 @@
         "x": 0,
         "y": 0
       },
-      "id": 101,
+      "id": 102,
       "panels": [],
-      "title": "Authentication",
+      "title": "Token Lifecycle",
       "type": "row",
-      "description": "Kết quả xử lý và độ trễ của yêu cầu xác thực trong môi trường và cụm đang chọn."
+      "description": "Kết quả gửi OTP, xác minh OTP và phát hành token trong môi trường và cụm đang chọn."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Tỷ lệ phát hành token thành công trên các kết quả kỹ thuật đủ điều kiện trong cửa sổ 5 phút; không tính invalid_grant. Mục tiêu đề xuất: từ 99,9% trở lên.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "vid:kpi_token_issuance_success:ratio5m{environment=~\"$environment\",cluster=~\"$cluster\"} * 100",
+          "instant": false,
+          "legendFormat": "Token issued",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "KPI-05 — Phát hành token thành công",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Tổng số yêu cầu token mỗi giây trong cửa sổ 5 phút.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(token_request_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "Token request",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Yêu cầu token mỗi giây",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Phân vị p95 của thời gian xử lý yêu cầu token trong cửa sổ 5 phút.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(token_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
+          "legendFormat": "p95",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Token latency p95",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -123,9 +312,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 6
       },
-      "id": 3,
+      "id": 4,
       "options": {
         "legend": {
           "calcs": [
@@ -144,22 +333,22 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(auth_success_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "thành công",
+          "expr": "sum(rate(token_issue_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "Phát hành thành công",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "sum(rate(auth_failed_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "thất bại",
+          "expr": "sum(rate(token_failed_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "Thất bại",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Authentication Outcomes",
+      "title": "Kết quả phát hành token",
       "type": "timeseries",
-      "description": "Số yêu cầu xác thực mỗi giây theo kết quả trong cửa sổ trượt 5 phút. Sử dụng lưu lượng thất bại để phát hiện suy giảm xác thực và đối chiếu với độ trễ."
+      "description": "Số token được phát hành và thất bại mỗi giây trong cửa sổ 5 phút."
     },
     {
       "datasource": {
@@ -205,9 +394,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 6
       },
-      "id": 4,
+      "id": 5,
       "options": {
         "legend": {
           "calcs": [
@@ -226,43 +415,29 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(token_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
           "legendFormat": "p50",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(token_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
           "legendFormat": "p95",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(auth_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(token_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])))",
           "legendFormat": "p99",
           "range": true,
           "refId": "C"
         }
       ],
-      "title": "Authentication Latency",
+      "title": "Độ trễ phát hành token",
       "type": "timeseries",
-      "description": "Các phân vị thời gian phản hồi xác thực được tính từ histogram trong cửa sổ 5 phút. p95 và p99 giúp phát hiện độ trễ phần đuôi mà giá trị trung vị có thể che khuất."
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 102,
-      "panels": [],
-      "title": "OTP & Token",
-      "type": "row",
-      "description": "Kết quả gửi OTP, xác minh OTP và phát hành token trong môi trường và cụm đang chọn."
+      "description": "Các phân vị p50, p95 và p99 của thời gian xử lý token trong cửa sổ 5 phút."
     },
     {
       "datasource": {
@@ -306,11 +481,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 8,
         "x": 0,
-        "y": 10
+        "y": 14
       },
-      "id": 5,
+      "id": 6,
       "options": {
         "legend": {
           "calcs": [
@@ -329,64 +504,15 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(otp_delivery_success_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "OTP gửi thành công",
+          "expr": "sum by (reason) (rate(token_failed_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])) or on() vector(0)",
+          "legendFormat": "{{reason}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(otp_delivery_failed_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "OTP gửi thất bại",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(otp_verify_success_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "OTP xác minh thành công",
-          "range": true,
-          "refId": "C"
-        },
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(otp_verify_failed_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "OTP xác minh thất bại",
-          "range": true,
-          "refId": "D"
-        },
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(token_issue_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "Token phát hành",
-          "range": true,
-          "refId": "E"
-        },
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(token_failed_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "Token thất bại",
-          "range": true,
-          "refId": "F"
         }
       ],
-      "title": "OTP & Token Outcomes",
+      "title": "Lỗi token theo nguyên nhân",
       "type": "timeseries",
-      "description": "Số lần gửi OTP, xác minh OTP và yêu cầu token mỗi giây theo kết quả trong cửa sổ 5 phút. So sánh kết quả kết thúc thành công và thất bại; trạng thái OTP đang chờ được hiển thị nhưng không phải kết quả kết thúc."
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 18
-      },
-      "id": 103,
-      "panels": [],
-      "title": "Authorization",
-      "type": "row",
-      "description": "Các quyết định chính sách phân quyền và tỷ lệ cho phép truy cập tài nguyên được bảo vệ của V-ID."
+      "description": "Tốc độ lỗi token theo signing_error, storage_error hoặc system_error."
     },
     {
       "datasource": {
@@ -403,8 +529,8 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "drawStyle": "bars",
-            "fillOpacity": 35,
+            "drawStyle": "line",
+            "fillOpacity": 15,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -412,7 +538,7 @@
               "viz": false
             },
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -421,7 +547,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             }
           },
           "unit": "reqps"
@@ -430,9 +556,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 19
+        "w": 8,
+        "x": 8,
+        "y": 14
       },
       "id": 7,
       "options": {
@@ -453,15 +579,15 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (decision) (rate(authorization_decisions_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
-          "legendFormat": "{{decision}}",
+          "expr": "sum by (grant_type) (rate(token_request_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "{{grant_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Authorization Decisions",
+      "title": "Yêu cầu theo grant type",
       "type": "timeseries",
-      "description": "Số quyết định phân quyền mỗi giây theo kết quả cho phép hoặc từ chối trong cửa sổ trượt 5 phút. Từ chối có thể là kết quả chính sách mong đợi và không phải lúc nào cũng là lỗi dịch vụ."
+      "description": "Lưu lượng yêu cầu token theo authorization_code, refresh_token và client_credentials."
     },
     {
       "datasource": {
@@ -471,77 +597,84 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 95
-              },
-              {
-                "color": "green",
-                "value": 98
-              }
-            ]
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
           },
-          "unit": "percent"
+          "unit": "reqps"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 19
+        "w": 8,
+        "x": 16,
+        "y": 14
       },
       "id": 8,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
+        "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * sum(rate(authorization_decisions_total{environment=~\"$environment\",cluster=~\"$cluster\",decision=\"allow\"}[5m])) / clamp_min(sum(rate(authorization_decisions_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m])), 1e-9)",
-          "legendFormat": "Allowed",
+          "expr": "sum by (token_type) (rate(token_issue_total{environment=~\"$environment\",cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "{{token_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Authorization Allow Rate",
-      "type": "stat",
-      "description": "Phần trăm quyết định phân quyền cho phép truy cập trong cửa sổ 5 phút. Cần diễn giải cùng lưu lượng và lý do từ chối; đây là đường cơ sở vận hành, chưa phải SLO được phê duyệt."
+      "title": "Phát hành theo token type",
+      "type": "timeseries",
+      "description": "Lưu lượng token phát hành thành công theo access_token, refresh_token và id_token."
     }
   ],
   "preload": false,
   "refresh": "5s",
   "schemaVersion": 41,
   "tags": [
-    "access",
-    "identity",
-    "mock-metrics",
-    "vid"
+    "vid",
+    "sso",
+    "token",
+    "oauth2",
+    "oidc",
+    "production-like"
   ],
   "templating": {
     "list": [
@@ -599,7 +732,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "V-ID — Identity & Access",
-  "uid": "vid-identity-access",
+  "title": "V-ID SSO — Token Lifecycle",
+  "uid": "sso-token-lifecycle",
   "version": 1
 }

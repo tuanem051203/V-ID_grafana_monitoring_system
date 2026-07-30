@@ -22,46 +22,22 @@
       }
     ]
   },
-  "description": "Góc nhìn vận hành về SLO, error budget, burn rate và sức khỏe telemetry của V-ID.",
+  "description": "Theo dõi telemetry, eligible traffic, error budget, burn rate và cảnh báo của nền tảng SSO.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
   "links": [
     {
+      "asDropdown": true,
       "icon": "external link",
       "includeVars": true,
       "keepTime": true,
+      "tags": [
+        "sso"
+      ],
       "targetBlank": false,
-      "title": "Overview",
-      "type": "link",
-      "url": "/d/vid-kpi-overview"
-    },
-    {
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Identity & Access",
-      "type": "link",
-      "url": "/d/vid-identity-access"
-    },
-    {
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Application Performance",
-      "type": "link",
-      "url": "/d/vid-application-performance"
-    },
-    {
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Infrastructure & Database",
-      "type": "link",
-      "url": "/d/vid-infrastructure-database"
+      "title": "SSO dashboards",
+      "type": "dashboards"
     }
   ],
   "panels": [
@@ -137,7 +113,7 @@
           "refId": "A"
         }
       ],
-      "title": "Metrics Target Health",
+      "title": "Sức khỏe metrics target",
       "type": "stat"
     },
     {
@@ -193,13 +169,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(prometheus_rule_evaluation_failures_total[$__range]))",
+          "expr": "sum(increase(prometheus_rule_evaluation_failures_total[$__range])) or vector(0)",
           "legendFormat": "Failures",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Rule Evaluation Failures",
+      "title": "Lỗi đánh giá Prometheus rule",
       "type": "stat"
     },
     {
@@ -254,7 +230,7 @@
           "refId": "A"
         }
       ],
-      "title": "Eligible Traffic by KPI",
+      "title": "Lưu lượng đủ điều kiện theo KPI",
       "type": "timeseries"
     },
     {
@@ -340,7 +316,7 @@
           "refId": "E"
         }
       ],
-      "title": "30-day Error Budget Remaining",
+      "title": "Error budget 30 ngày còn lại",
       "type": "timeseries"
     },
     {
@@ -396,7 +372,7 @@
           "refId": "A"
         }
       ],
-      "title": "Fast Burn Rate (5m)",
+      "title": "Fast burn rate (5 phút)",
       "type": "timeseries"
     },
     {
@@ -404,7 +380,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Các cảnh báo đang firing hoặc pending trong môi trường và cụm đang chọn. Sử dụng nhãn severity, service và liên kết runbook để ưu tiên điều tra.",
+      "description": "Các cảnh báo đang firing hoặc pending trong môi trường và cụm đang chọn. Khi không có cảnh báo, panel hiển thị một dòng trạng thái inactive thay vì No data.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -441,7 +417,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "ALERTS{alertstate=~\"pending|firing\",environment=~\"$environment\",cluster=~\"$cluster\"}",
+          "expr": "ALERTS{alertstate=~\"pending|firing\",environment=~\"$environment\",cluster=~\"$cluster\"} or label_replace(label_replace(vector(0), \"alertname\", \"Không có cảnh báo\", \"\", \"\"), \"alertstate\", \"inactive\", \"\", \"\")",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -449,7 +425,7 @@
           "refId": "A"
         }
       ],
-      "title": "Active Alerts",
+      "title": "Cảnh báo đang hoạt động",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -462,10 +438,11 @@
   "refresh": "5s",
   "schemaVersion": 41,
   "tags": [
-    "operations",
+    "vid",
+    "sso",
     "slo",
-    "v-id",
-    "vid"
+    "incident",
+    "production-like"
   ],
   "templating": {
     "list": [
@@ -522,7 +499,7 @@
     "to": "now"
   },
   "timezone": "browser",
-  "title": "V-ID — SLO & Operations",
-  "uid": "vid-slo-operations",
+  "title": "V-ID SSO — SLO & Sự cố",
+  "uid": "sso-reliability",
   "version": 1
 }
