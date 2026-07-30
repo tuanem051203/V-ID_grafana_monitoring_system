@@ -1,6 +1,6 @@
 # V-ID Grafana Monitoring System
 
-Hệ thống monitoring cho nền tảng định danh V-ID, tập trung vào trải nghiệm đăng nhập, OTP, phát hành OAuth2/OIDC token và độ sẵn sàng của các dịch vụ identity core.
+Hệ thống monitoring cho nền tảng định danh V-ID, tập trung vào trải nghiệm đăng nhập, OTP, phát hành OAuth2/OIDC token và độ sẵn sàng của các dịch vụ identity core..
 
 Dự án sử dụng **Prometheus**, **Grafana** và **Alertmanager** để:
 
