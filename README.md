@@ -8,7 +8,7 @@ Dự án sử dụng **Prometheus**, **Grafana** và **Alertmanager** để:
 - Tính toán KPI, SLI và mức tuân thủ SLO.
 - Hiển thị sức khỏe nền tảng trên Grafana.
 - Cảnh báo sớm khi dịch vụ suy giảm hoặc tiêu thụ error budget quá nhanh.
-- Quản lý dashboard và rules bằng Git.
+- Quản lý dashboard và rules bằng Git..
 
 > Repository đang trong giai đoạn thiết kế và phát triển. Metric contract, SLO target, datasource UID, notification route và thông tin môi trường phải được xác nhận với V-ID service owner/SRE trước khi triển khai UAT.
 
