@@ -189,6 +189,7 @@ class MetricsGenerator:
         delivery_rate = max(0, delivery_rate - effects.otp_delivery_penalty)
         providers = ("viettel", "vnpt", "mock")
         send_providers = self._random.split(send_count, (0.45, 0.40, 0.15))
+        delivered = 0
         failed = 0
         for provider, sent in zip(providers, send_providers):
             success, provider_failed = self._random.split(
@@ -196,6 +197,7 @@ class MetricsGenerator:
             )
             OTP_SEND.labels(provider, "sms").inc(sent)
             OTP_DELIVERY_SUCCESS.labels(provider, "sms").inc(success)
+            delivered += success
             failed += provider_failed
         failed_reasons = self._random.split(failed, (0.60, 0.25, 0.15))
         for reason, value in zip(

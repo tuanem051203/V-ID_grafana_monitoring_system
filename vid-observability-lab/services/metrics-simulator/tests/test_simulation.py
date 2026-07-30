@@ -179,6 +179,12 @@ class MetricsGeneratorTest(unittest.TestCase):
             counter_total("otp_delivery_success_total")
             + counter_total("otp_delivery_failed_total"),
         )
+        self.assertGreater(counter_total("otp_verify_total"), 0)
+        self.assertEqual(
+            counter_total("otp_verify_total"),
+            counter_total("otp_verify_success_total")
+            + counter_total("otp_verify_failed_total"),
+        )
         self.assertEqual(
             counter_total("token_request_total"),
             counter_total("token_issue_total") + counter_total("token_failed_total"),
