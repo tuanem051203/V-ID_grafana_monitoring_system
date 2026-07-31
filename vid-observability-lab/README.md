@@ -192,6 +192,30 @@ Script kiểm tra Python syntax, dashboard JSON, Prometheus config/rules, sáu K
 rule tests, Alertmanager config và Docker Compose. Không merge nếu validation
 không đạt.
 
+## Continuous Integration
+
+GitHub Actions workflow tại `.github/workflows/ci.yml` chạy khi có Pull Request,
+push vào `main` hoặc chạy thủ công. Pipeline gồm các quality gate độc lập:
+
+- Ruff, Pyright, Python unit test và dependency audit.
+- Dashboard JSON và dashboard contract test.
+- Prometheus config/rules, `promtool` rule test và Alertmanager config.
+- Docker Compose model validation.
+- Build và quét lỗ hổng image bằng Trivy.
+- Dựng toàn bộ stack, kiểm tra health endpoint, rule groups và Prometheus target.
+
+Chạy các gate tương ứng trên máy phát triển:
+
+```bash
+pip install -e 'services/metrics-simulator[dev]'
+./scripts/ci-python.sh
+./scripts/ci-observability.sh
+./scripts/ci-smoke-test.sh
+```
+
+`ci-observability.sh` và `ci-smoke-test.sh` cần Docker. Smoke test dùng Compose
+project riêng và tự dọn container/volume của lần chạy đó khi hoàn tất.
+
 ## Production gate
 
 1. Owner phê duyệt numerator, denominator, exclusion, target và window.

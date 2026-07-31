@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+    working-directory: vid-observability-lab
+
+env:
+  PYTHON_VERSION: "3.11"
+  PROMETHEUS_IMAGE: prom/prometheus:v3.5.0
+  ALERTMANAGER_IMAGE: prom/alertmanager:v0.28.1
+
+jobs:
+  python-quality:
+    name: Python quality and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: vid-observability-lab/services/metrics-simulator/pyproject.toml
+
+      - name: Install service and CI tools
+        run: python -m pip install --disable-pip-version-check -e 'services/metrics-simulator[dev]'
+
+      - name: Run lint, type checks and unit tests
+        run: ./scripts/ci-python.sh
+
+  dashboards:
+    name: Grafana dashboard contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate dashboard JSON and contracts
+        run: |
+          python -m unittest discover -s tests/dashboard -v
+          for dashboard in observability/grafana/dashboards/*.json; do
+            python -m json.tool "$dashboard" >/dev/null
+          done
+
+  observability-config:
+    name: Prometheus and Alertmanager validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate runtime configuration and rule tests
+        run: ./scripts/ci-observability.sh
+
+      - name: Validate Docker Compose model
+        run: docker compose -f deployments/local/docker-compose.yml config --quiet
+
+  dependency-audit:
+    name: Python dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: vid-observability-lab/services/metrics-simulator/pyproject.toml
+
+      - name: Install service and audit tool
+        run: python -m pip install --disable-pip-version-check -e 'services/metrics-simulator[dev]'
+
+      - name: Audit installed runtime dependencies
+        run: python -m pip_audit --local --skip-editable
+
+  container-build:
+    name: Build application image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: vid-observability-lab/services/metrics-simulator
+          load: true
+          push: false
+          tags: vid-metrics-simulator:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan application image
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: vid-metrics-simulator:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+  integration:
+    name: Full-stack smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - python-quality
+      - dashboards
+      - observability-config
+      - container-build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run full observability stack
+        run: ./scripts/ci-smoke-test.sh
