@@ -1,0 +1,74 @@
+{{ define "vid.email.text" -}}
+V-ID ALERT: {{ .Status }}
+
+Alert: {{ .CommonLabels.alertname }}
+Severity: {{ .CommonLabels.severity }}
+Environment: {{ .CommonLabels.environment }}
+Cluster: {{ .CommonLabels.cluster }}
+Service: {{ .CommonLabels.service }}
+Alerts in group: {{ len .Alerts }}
+
+{{ range .Alerts -}}
+Summary: {{ .Annotations.summary }}
+Description: {{ .Annotations.description }}
+Started: {{ .StartsAt }}
+{{ with .Annotations.dashboard_url }}Dashboard: {{ . }}
+{{ end -}}
+{{ with .Annotations.runbook_url }}Runbook: {{ . }}
+{{ end -}}
+{{ with .GeneratorURL }}Prometheus: {{ . }}
+{{ end }}
+{{ end -}}
+{{ with .ExternalURL }}Alertmanager: {{ . }}
+{{ end -}}
+{{ end }}
+
+{{ define "vid.email.html" -}}
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;background:#f3f4f6;color:#111827;font-family:Arial,sans-serif">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 12px">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="680" cellspacing="0" cellpadding="0" style="max-width:680px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+            <tr>
+              <td style="padding:18px 24px;background:{{ if eq .Status "firing" }}#b91c1c{{ else }}#047857{{ end }};color:#ffffff">
+                <div style="font-size:12px;font-weight:bold;letter-spacing:.08em">V-ID MONITORING</div>
+                <div style="font-size:22px;font-weight:bold;margin-top:6px">{{ .CommonLabels.alertname }}</div>
+                <div style="font-size:14px;margin-top:6px">Status: {{ .Status }} · Severity: {{ .CommonLabels.severity }}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 24px">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="6" style="font-size:14px;border-collapse:collapse">
+                  <tr><td style="color:#6b7280;width:130px">Environment</td><td><strong>{{ .CommonLabels.environment }}</strong></td></tr>
+                  <tr><td style="color:#6b7280">Cluster</td><td>{{ .CommonLabels.cluster }}</td></tr>
+                  <tr><td style="color:#6b7280">Service</td><td>{{ .CommonLabels.service }}</td></tr>
+                  <tr><td style="color:#6b7280">Alerts in group</td><td>{{ len .Alerts }}</td></tr>
+                </table>
+
+                {{ range .Alerts }}
+                <div style="margin-top:18px;padding:16px;border:1px solid #e5e7eb;border-radius:6px">
+                  <div style="font-size:16px;font-weight:bold">{{ .Annotations.summary }}</div>
+                  <div style="font-size:14px;line-height:1.5;margin-top:8px;color:#374151">{{ .Annotations.description }}</div>
+                  <div style="font-size:12px;margin-top:10px;color:#6b7280">Started: {{ .StartsAt }}</div>
+                  <div style="margin-top:14px">
+                    {{ with .Annotations.dashboard_url }}<a href="{{ . }}" style="display:inline-block;margin-right:8px;padding:8px 12px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:4px">Dashboard</a>{{ end }}
+                    {{ with .Annotations.runbook_url }}<a href="{{ . }}" style="display:inline-block;margin-right:8px;padding:8px 12px;background:#4b5563;color:#ffffff;text-decoration:none;border-radius:4px">Runbook</a>{{ end }}
+                    {{ with .GeneratorURL }}<a href="{{ . }}" style="display:inline-block;padding:8px 12px;color:#2563eb;text-decoration:none">Prometheus</a>{{ end }}
+                  </div>
+                </div>
+                {{ end }}
+
+                {{ with .ExternalURL }}
+                <div style="margin-top:20px;font-size:13px"><a href="{{ . }}" style="color:#2563eb">Open Alertmanager</a></div>
+                {{ end }}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+{{- end }}

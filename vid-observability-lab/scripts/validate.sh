@@ -17,7 +17,11 @@ promtool check config observability/prometheus/prometheus.yml
 promtool check rules observability/prometheus/rules/vid-kpi-rules.yml
 promtool check rules observability/prometheus/rules/vid-alert-rules.yml
 promtool test rules tests/prometheus/vid-kpi-rules.test.yml
-amtool check-config observability/alertmanager/alertmanager.yml
-docker compose -f deployments/local/docker-compose.yml config --quiet
+for alertmanager_config in observability/alertmanager/alertmanager.*.yml; do
+  alertmanager_config_name=$(basename "$alertmanager_config")
+  (cd observability/alertmanager && amtool check-config "$alertmanager_config_name")
+done
+VID_SMTP_APP_PASSWORD=validation-only \
+  docker compose -f deployments/local/docker-compose.yml config --quiet
 
 echo "Validation passed"

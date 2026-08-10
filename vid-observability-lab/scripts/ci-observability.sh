@@ -19,9 +19,12 @@ docker run --rm \
   "$PROMETHEUS_IMAGE" \
   test rules tests/prometheus/vid-kpi-rules.test.yml
 
-docker run --rm \
-  --entrypoint amtool \
-  -v "$PROJECT_ROOT/observability/alertmanager:/etc/alertmanager:ro" \
-  "$ALERTMANAGER_IMAGE" \
-  check-config /etc/alertmanager/alertmanager.yml
-
+for alertmanager_config_path in "$PROJECT_ROOT"/observability/alertmanager/alertmanager.*.yml; do
+  alertmanager_config=$(basename "$alertmanager_config_path")
+  docker run --rm \
+    --entrypoint amtool \
+    -v "$PROJECT_ROOT/observability/alertmanager:/etc/alertmanager:ro" \
+    -w /etc/alertmanager \
+    "$ALERTMANAGER_IMAGE" \
+    check-config "/etc/alertmanager/$alertmanager_config"
+done
