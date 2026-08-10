@@ -1,3 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+
+# Local SMTP credentials. Never commit Gmail App Passwords.
+vid-observability-lab/secrets/*
+!vid-observability-lab/secrets/README.md

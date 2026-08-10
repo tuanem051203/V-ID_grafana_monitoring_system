@@ -18,6 +18,8 @@ services:
     volumes:
       - ../../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager
+    secrets:
+      - smtp_password
     ports:
       - "9093:9093"
     restart: unless-stopped
@@ -56,3 +58,7 @@ volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
+
+secrets:
+  smtp_password:
+    environment: VID_SMTP_APP_PASSWORD
