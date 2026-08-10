@@ -40,6 +40,30 @@ thể đặt `3600` để chạy trọn lịch 24 giờ trong một giờ demo. 
 API `/api/simulation` trả profile, thời gian mô phỏng, TPS hiện tại và event đang
 hoạt động. `/metrics` chỉ chứa raw metrics và các gauge trạng thái simulator.
 
+## Test warning email theo yêu cầu
+
+Bật kịch bản OTP queue backlog trong 7 phút:
+
+```bash
+curl -X POST http://localhost:8000/api/simulation/warnings/otp-queue-backlog \
+  -H 'Content-Type: application/json' \
+  -d '{"duration_seconds":420,"queue_size":150}'
+```
+
+Simulator giữ `otp_queue_size` lớn hơn 100. Sau 5 phút, Prometheus chuyển
+`VIDOTPQueueBacklog` sang firing; Alertmanager gửi email sau `group_wait`. Kịch
+bản tự hết hạn để kiểm tra email resolved. Thời lượng tối thiểu là 310 giây để
+đảm bảo alert vượt qua `for: 5m`.
+
+Kiểm tra hoặc dừng kịch bản sớm:
+
+```bash
+curl http://localhost:8000/api/simulation
+curl -X DELETE http://localhost:8000/api/simulation/warnings/otp-queue-backlog
+```
+
+API điều khiển mô phỏng chỉ dành cho local/UAT và không được public ra Internet.
+
 ## Incident tự động
 
 Mỗi ngày mô phỏng tự chạy Morning Login Peak, Database Slow, SMS Gateway

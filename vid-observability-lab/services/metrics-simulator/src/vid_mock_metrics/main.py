@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager, suppress
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Response
+from pydantic import BaseModel, Field
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from vid_mock_metrics.config import load_settings
@@ -19,6 +20,11 @@ logging.basicConfig(
 
 settings = load_settings()
 generator = MetricsGenerator(settings)
+
+
+class OTPQueueWarningRequest(BaseModel):
+    duration_seconds: int = Field(default=420, ge=310, le=3600)
+    queue_size: int = Field(default=150, ge=101, le=100_000)
 
 
 @asynccontextmanager
@@ -47,4 +53,17 @@ async def metrics() -> Response:
 
 @app.get("/api/simulation")
 async def simulation() -> dict[str, object]:
-    return generator.snapshot.as_dict()
+    return {
+        **generator.snapshot.as_dict(),
+        "manual_warning": generator.otp_queue_warning_state(),
+    }
+
+
+@app.post("/api/simulation/warnings/otp-queue-backlog")
+async def activate_otp_queue_warning(request: OTPQueueWarningRequest) -> dict[str, object]:
+    return generator.activate_otp_queue_warning(request.duration_seconds, request.queue_size)
+
+
+@app.delete("/api/simulation/warnings/otp-queue-backlog")
+async def clear_otp_queue_warning() -> dict[str, object]:
+    return generator.clear_otp_queue_warning()

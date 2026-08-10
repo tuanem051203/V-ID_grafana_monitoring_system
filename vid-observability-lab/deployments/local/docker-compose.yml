@@ -13,10 +13,12 @@ services:
 
   alertmanager:
     image: prom/alertmanager:v0.28.1
+    working_dir: /etc/alertmanager
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
     volumes:
-      - ../../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ../../observability/alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ../../observability/alertmanager/templates:/etc/alertmanager/templates:ro
       - alertmanager-data:/alertmanager
     secrets:
       - smtp_password

@@ -158,6 +158,14 @@ class MetricsGeneratorTest(unittest.TestCase):
         self.assertEqual(active.active_events, ("database_slow",))
         self.assertEqual(recovered.active_events, ())
 
+        warning_state = generator.activate_otp_queue_warning(420, 150)
+        self.assertTrue(warning_state["active"])
+        warning_snapshot = generator.generate_at(571 * 60)
+        self.assertIn("manual_otp_queue_backlog", warning_snapshot.active_events)
+        self.assertIn("otp_queue_size 150.0", generate_latest(REGISTRY).decode())
+        cleared_state = generator.clear_otp_queue_warning()
+        self.assertFalse(cleared_state["active"])
+
         exposition = generate_latest(REGISTRY).decode()
 
         def counter_total(name: str) -> float:

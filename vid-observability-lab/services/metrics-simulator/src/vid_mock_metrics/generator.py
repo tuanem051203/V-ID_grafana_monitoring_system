@@ -80,6 +80,8 @@ class MetricsGenerator:
         now = datetime.now().astimezone()
         self._anchor_second = now.hour * 3600 + now.minute * 60 + now.second
         self._anchor_monotonic = time.monotonic()
+        self._manual_otp_queue_deadline = 0.0
+        self._manual_otp_queue_size = 0
         self._snapshot = SimulationSnapshot(
             settings.load_profile.name,
             now.strftime("%H:%M:%S"),
@@ -96,6 +98,26 @@ class MetricsGenerator:
         speed = 86400 / self._settings.simulation_day_seconds
         return (self._anchor_second + elapsed * speed) % 86400
 
+    def activate_otp_queue_warning(self, duration_seconds: int, queue_size: int) -> dict[str, object]:
+        self._manual_otp_queue_deadline = time.monotonic() + duration_seconds
+        self._manual_otp_queue_size = queue_size
+        return self.otp_queue_warning_state()
+
+    def clear_otp_queue_warning(self) -> dict[str, object]:
+        self._manual_otp_queue_deadline = 0.0
+        self._manual_otp_queue_size = 0
+        return self.otp_queue_warning_state()
+
+    def otp_queue_warning_state(self) -> dict[str, object]:
+        remaining = max(0.0, self._manual_otp_queue_deadline - time.monotonic())
+        active = remaining > 0
+        return {
+            "scenario": "otp_queue_backlog",
+            "active": active,
+            "queue_size": self._manual_otp_queue_size if active else 0,
+            "remaining_seconds": round(remaining, 1),
+        }
+
     async def run(self) -> None:
         while True:
             started = time.monotonic()
@@ -110,6 +132,7 @@ class MetricsGenerator:
 
     def generate_at(self, second_of_day: float) -> SimulationSnapshot:
         effects = self._scheduler.active_at(second_of_day)
+        manual_warning_active = self._manual_otp_queue_deadline > time.monotonic()
         baseline_tps = self._traffic.tps_at(second_of_day / 60)
         tps = baseline_tps * effects.traffic_multiplier
         count = self._random.event_count(tps * self._settings.generation_interval_seconds)
@@ -118,7 +141,7 @@ class MetricsGenerator:
         self._generate_otp(count, effects)
         self._generate_token(count, effects)
         self._generate_platform(count, tps, effects)
-        self._generate_supporting_metrics(count, tps, effects)
+        self._generate_supporting_metrics(count, tps, effects, manual_warning_active)
         self._set_simulation_state(tps, effects)
 
         hour = int(second_of_day // 3600)
@@ -128,7 +151,7 @@ class MetricsGenerator:
             self._settings.load_profile.name,
             f"{hour:02d}:{minute:02d}:{second:02d}",
             round(tps, 2),
-            effects.names,
+            effects.names + (("manual_otp_queue_backlog",) if manual_warning_active else ()),
         )
         LOGGER.info(
             "Generated production-like metric batch",
@@ -283,7 +306,11 @@ class MetricsGenerator:
                 )
 
     def _generate_supporting_metrics(
-        self, auth_count: int, tps: float, effects: EventEffects
+        self,
+        auth_count: int,
+        tps: float,
+        effects: EventEffects,
+        manual_otp_queue_warning: bool = False,
     ) -> None:
         # Pre-create every bounded error series so Grafana shows a healthy zero
         # instead of "No data" before the first scheduled incident.
@@ -341,6 +368,8 @@ class MetricsGenerator:
             if effects.otp_delivery_penalty
             else max(0, round(utilization * 8))
         )
+        if manual_otp_queue_warning:
+            queue_size = max(queue_size, self._manual_otp_queue_size)
         OTP_QUEUE_SIZE.set(queue_size)
         sms_down = effects.otp_delivery_penalty >= 0.2
         for provider in ("viettel", "vnpt"):
