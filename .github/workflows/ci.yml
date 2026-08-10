@@ -41,7 +41,9 @@ jobs:
           cache-dependency-path: vid-observability-lab/services/metrics-simulator/pyproject.toml
 
       - name: Install service and CI tools
-        run: python -m pip install --disable-pip-version-check -e 'services/metrics-simulator[dev]'
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade "setuptools>=84"
+          python -m pip install --disable-pip-version-check -e 'services/metrics-simulator[dev]'
 
       - name: Run lint, type checks and unit tests
         run: ./scripts/ci-python.sh
@@ -96,7 +98,9 @@ jobs:
           cache-dependency-path: vid-observability-lab/services/metrics-simulator/pyproject.toml
 
       - name: Install service and audit tool
-        run: python -m pip install --disable-pip-version-check -e 'services/metrics-simulator[dev]'
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade "setuptools>=84"
+          python -m pip install --disable-pip-version-check -e 'services/metrics-simulator[dev]'
 
       - name: Audit installed runtime dependencies
         run: python -m pip_audit --local --skip-editable
@@ -123,7 +127,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan application image
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: vid-metrics-simulator:${{ github.sha }}
           format: table

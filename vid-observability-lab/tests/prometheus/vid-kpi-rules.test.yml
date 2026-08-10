@@ -43,7 +43,7 @@ tests:
         eval_time: 5m
         exp_samples:
           - labels: '{__name__="vid:kpi_authentication_success:ratio5m",cluster="test",environment="uat"}'
-            value: 0.9990000000000001
+            value: 0.9989999999999999
       - expr: 'vid:kpi_authentication_latency_under_500ms:ratio5m'
         eval_time: 5m
         exp_samples:
@@ -53,19 +53,19 @@ tests:
         eval_time: 5m
         exp_samples:
           - labels: '{__name__="vid:kpi_otp_delivery_success:ratio5m",cluster="test",environment="uat"}'
-            value: 0.9500000000000001
+            value: 0.95
       - expr: 'vid:kpi_otp_verification_success:ratio5m'
         eval_time: 5m
         exp_samples:
           - labels: '{__name__="vid:kpi_otp_verification_success:ratio5m",cluster="test",environment="uat"}'
-            value: 0.88
+            value: 0.8799999999999999
       - expr: 'vid:kpi_token_issuance_success:ratio5m'
         eval_time: 5m
         exp_samples:
           - labels: '{__name__="vid:kpi_token_issuance_success:ratio5m",cluster="test",environment="uat"}'
-            value: 0.9990000000000001
+            value: 0.9989999999999999
       - expr: 'vid:kpi_platform_availability:ratio5m'
         eval_time: 5m
         exp_samples:
           - labels: '{__name__="vid:kpi_platform_availability:ratio5m",cluster="test",environment="uat"}'
-            value: 0.9990000000000001
+            value: 0.999

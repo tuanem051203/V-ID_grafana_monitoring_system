@@ -136,9 +136,7 @@ class MetricsGenerator:
         )
         return self._snapshot
 
-    def _generate_authentication(
-        self, count: int, tps: float, effects: EventEffects
-    ) -> None:
+    def _generate_authentication(self, count: int, tps: float, effects: EventEffects) -> None:
         baseline = self._settings.baseline
         success_rate = self._random.bounded_rate(
             baseline.auth_success_min,
@@ -192,9 +190,7 @@ class MetricsGenerator:
         delivered = 0
         failed = 0
         for provider, sent in zip(providers, send_providers):
-            success, provider_failed = self._random.split(
-                sent, (delivery_rate, 1 - delivery_rate)
-            )
+            success, provider_failed = self._random.split(sent, (delivery_rate, 1 - delivery_rate))
             OTP_SEND.labels(provider, "sms").inc(sent)
             OTP_DELIVERY_SUCCESS.labels(provider, "sms").inc(success)
             delivered += success
@@ -211,9 +207,7 @@ class MetricsGenerator:
             baseline.otp_verification_max,
             "otp_verification",
         )
-        verified, verify_failed = self._random.split(
-            verify_count, (verify_rate, 1 - verify_rate)
-        )
+        verified, verify_failed = self._random.split(verify_count, (verify_rate, 1 - verify_rate))
         OTP_VERIFY.labels("sms").inc(verify_count)
         OTP_VERIFY_SUCCESS.labels("sms").inc(verified)
         for reason, value in zip(
@@ -254,13 +248,9 @@ class MetricsGenerator:
             ("signing_error", "storage_error", "system_error"),
             self._random.split(failed, (0.30, 0.30, 0.40)),
         ):
-            TOKEN_FAILED.labels(
-                "access_token", "authorization_code", reason
-            ).inc(value)
+            TOKEN_FAILED.labels("access_token", "authorization_code", reason).inc(value)
             for _ in range(value):
-                TOKEN_DURATION.labels(
-                    "access_token", "authorization_code", "failed"
-                ).observe(
+                TOKEN_DURATION.labels("access_token", "authorization_code", "failed").observe(
                     self._random.lognormal_latency(
                         baseline.token_latency_p50_seconds,
                         0.55,
@@ -268,9 +258,7 @@ class MetricsGenerator:
                     )
                 )
 
-    def _generate_platform(
-        self, auth_count: int, tps: float, effects: EventEffects
-    ) -> None:
+    def _generate_platform(self, auth_count: int, tps: float, effects: EventEffects) -> None:
         request_count = self._random.event_count(auth_count * 1.20)
         error_rate = (
             effects.http_5xx_rate
@@ -282,19 +270,13 @@ class MetricsGenerator:
             )
         )
         errors = self._random.event_count(request_count * error_rate)
-        route_counts = self._random.split(
-            request_count, tuple(route[2] for route in ROUTES)
-        )
+        route_counts = self._random.split(request_count, tuple(route[2] for route in ROUTES))
         error_counts = self._random.split(errors, tuple(route[2] for route in ROUTES))
         utilization = min(2.0, tps / self._settings.load_profile.peak_tps)
         latency_multiplier = 1 + 0.30 * utilization**2
-        for (service, endpoint, _), total, failed in zip(
-            ROUTES, route_counts, error_counts
-        ):
+        for (service, endpoint, _), total, failed in zip(ROUTES, route_counts, error_counts):
             HTTP_REQUESTS.labels(service, endpoint, "POST", "true").inc(total)
-            HTTP_REQUESTS_5XX.labels(
-                service, endpoint, "POST", "true", "503"
-            ).inc(failed)
+            HTTP_REQUESTS_5XX.labels(service, endpoint, "POST", "true", "503").inc(failed)
             for _ in range(total):
                 HTTP_DURATION.labels(service, endpoint, "POST").observe(
                     self._random.lognormal_latency(0.10, 0.62, latency_multiplier)
@@ -315,15 +297,11 @@ class MetricsGenerator:
 
         allowed, denied = self._random.split(auth_count, (0.985, 0.015))
         AUTHORIZATION_DECISIONS.labels("identity", "allow", "policy_match").inc(allowed)
-        AUTHORIZATION_DECISIONS.labels(
-            "identity", "deny", "insufficient_scope"
-        ).inc(denied)
+        AUTHORIZATION_DECISIONS.labels("identity", "deny", "insufficient_scope").inc(denied)
 
         database_count = self._random.event_count(auth_count * 0.70)
         database_error_rate = (
-            effects.database_error_rate
-            if effects.database_error_rate is not None
-            else 0.001
+            effects.database_error_rate if effects.database_error_rate is not None else 0.001
         )
         database_errors = self._random.event_count(database_count * database_error_rate)
         database_success = max(0, database_count - database_errors)
@@ -331,16 +309,10 @@ class MetricsGenerator:
         operation_counts = self._random.split(database_success, (0.70, 0.15, 0.15))
         for operation, operation_count in zip(operations, operation_counts):
             for _ in range(operation_count):
-                DATABASE_QUERY_DURATION.labels(
-                    "identity-db", operation, "success"
-                ).observe(
-                    self._random.lognormal_latency(
-                        0.025, 0.70, effects.database_latency_multiplier
-                    )
+                DATABASE_QUERY_DURATION.labels("identity-db", operation, "success").observe(
+                    self._random.lognormal_latency(0.025, 0.70, effects.database_latency_multiplier)
                 )
-            DATABASE_QUERIES.labels(
-                "identity-db", operation, "success"
-            ).inc(operation_count)
+            DATABASE_QUERIES.labels("identity-db", operation, "success").inc(operation_count)
         DATABASE_QUERIES.labels("identity-db", "select", "error").inc(database_errors)
 
         utilization = min(1.0, tps / self._settings.load_profile.peak_tps)
@@ -384,22 +356,20 @@ class MetricsGenerator:
                 not effects.http_5xx_rate or effects.http_5xx_rate < 0.05
             )
         if effects.auth_success_penalty:
-            APPLICATION_ERRORS.labels(
-                "auth-service", "database_dependency", "critical"
-            ).inc(max(1, database_errors))
+            APPLICATION_ERRORS.labels("auth-service", "database_dependency", "critical").inc(
+                max(1, database_errors)
+            )
         if effects.otp_delivery_penalty:
-            APPLICATION_ERRORS.labels(
-                "otp-service", "provider_error", "critical"
-            ).inc(max(1, round(auth_count * 0.01)))
+            APPLICATION_ERRORS.labels("otp-service", "provider_error", "critical").inc(
+                max(1, round(auth_count * 0.01))
+            )
         if effects.token_success_penalty:
-            APPLICATION_ERRORS.labels(
-                "token-service", "cache_dependency", "critical"
-            ).inc(max(1, round(auth_count * 0.01)))
+            APPLICATION_ERRORS.labels("token-service", "cache_dependency", "critical").inc(
+                max(1, round(auth_count * 0.01))
+            )
 
     def _set_simulation_state(self, tps: float, effects: EventEffects) -> None:
         SIMULATION_TPS.labels(self._settings.load_profile.name).set(tps)
         active_names = set(effects.names)
         for definition in self._settings.events:
-            SIMULATION_EVENT_ACTIVE.labels(definition.name).set(
-                definition.name in active_names
-            )
+            SIMULATION_EVENT_ACTIVE.labels(definition.name).set(definition.name in active_names)

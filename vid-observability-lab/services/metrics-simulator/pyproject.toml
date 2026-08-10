@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=84"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,9 +8,10 @@ version = "2.0.0"
 description = "Production-like Prometheus metrics simulator for V-ID observability."
 requires-python = ">=3.11"
 dependencies = [
-  "fastapi==0.116.1",
+  "fastapi==0.141.1",
   "prometheus-client==0.22.1",
   "PyYAML==6.0.2",
+  "starlette==1.6.0",
   "uvicorn[standard]==0.35.0",
 ]
 

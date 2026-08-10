@@ -22,9 +22,7 @@ class TrafficGenerator:
     def tps_at(self, minute_of_day: float) -> float:
         minute = minute_of_day % 1440
         left, right = self._schedule[0], self._schedule[-1]
-        for candidate_left, candidate_right in zip(
-            self._schedule, self._schedule[1:]
-        ):
+        for candidate_left, candidate_right in zip(self._schedule, self._schedule[1:]):
             if candidate_left.minute <= minute <= candidate_right.minute:
                 left, right = candidate_left, candidate_right
                 break
