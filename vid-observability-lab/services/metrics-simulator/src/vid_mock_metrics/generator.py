@@ -98,7 +98,9 @@ class MetricsGenerator:
         speed = 86400 / self._settings.simulation_day_seconds
         return (self._anchor_second + elapsed * speed) % 86400
 
-    def activate_otp_queue_warning(self, duration_seconds: int, queue_size: int) -> dict[str, object]:
+    def activate_otp_queue_warning(
+        self, duration_seconds: int, queue_size: int
+    ) -> dict[str, object]:
         self._manual_otp_queue_deadline = time.monotonic() + duration_seconds
         self._manual_otp_queue_size = queue_size
         return self.otp_queue_warning_state()
