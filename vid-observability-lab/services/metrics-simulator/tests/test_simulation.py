@@ -89,9 +89,7 @@ class EventSchedulerTest(unittest.TestCase):
 class RandomModelTest(unittest.TestCase):
     def test_lognormal_auth_latency_matches_production_shape(self) -> None:
         model = RandomModel(20250730)
-        samples = sorted(
-            model.lognormal_latency(0.12, 0.64, 1.0) for _ in range(20_000)
-        )
+        samples = sorted(model.lognormal_latency(0.12, 0.64, 1.0) for _ in range(20_000))
 
         def percentile(value: float) -> float:
             return samples[round((len(samples) - 1) * value)]
@@ -182,8 +180,7 @@ class MetricsGeneratorTest(unittest.TestCase):
         self.assertGreater(counter_total("otp_verify_total"), 0)
         self.assertEqual(
             counter_total("otp_verify_total"),
-            counter_total("otp_verify_success_total")
-            + counter_total("otp_verify_failed_total"),
+            counter_total("otp_verify_success_total") + counter_total("otp_verify_failed_total"),
         )
         self.assertEqual(
             counter_total("token_request_total"),

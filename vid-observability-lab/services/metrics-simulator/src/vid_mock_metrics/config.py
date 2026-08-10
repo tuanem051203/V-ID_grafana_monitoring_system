@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(frozen=True)
@@ -77,27 +77,42 @@ def _rate(value: Any, key: str) -> float:
     return number
 
 
+def _mapping(value: object, key: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{key} must be a mapping")
+    return cast(dict[str, Any], value)
+
+
+def _mapping_list(value: object, key: str) -> tuple[dict[str, Any], ...]:
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be a list")
+    items = cast(list[object], value)
+    return tuple(_mapping(item, f"{key} item") for item in items)
+
+
 def load_settings() -> Settings:
     import yaml
 
     default_path = Path(__file__).resolve().parents[2] / "config" / "simulation.yaml"
     path = Path(os.getenv("VID_SIMULATION_CONFIG", str(default_path)))
     with path.open(encoding="utf-8") as stream:
-        raw = yaml.safe_load(stream)
-    if not isinstance(raw, dict):
+        loaded = cast(object, yaml.safe_load(stream))  # pyright: ignore[reportUnknownMemberType]
+    if not isinstance(loaded, dict):
         raise ValueError(f"Invalid simulation configuration: {path}")
+    raw = cast(dict[str, Any], loaded)
 
     profile_name = os.getenv("VID_LOAD_PROFILE", str(raw.get("default_profile", "development")))
-    raw_profiles = raw.get("load_profiles")
-    if not isinstance(raw_profiles, dict) or profile_name not in raw_profiles:
+    raw_profiles = _mapping(raw.get("load_profiles"), "load_profiles")
+    if profile_name not in raw_profiles:
         raise ValueError(f"Unknown VID_LOAD_PROFILE {profile_name!r}")
-    profile = LoadProfile(profile_name, float(raw_profiles[profile_name]["peak_tps"]))
+    raw_profile = _mapping(raw_profiles[profile_name], f"load_profiles.{profile_name}")
+    profile = LoadProfile(profile_name, float(raw_profile["peak_tps"]))
     if profile.peak_tps <= 0:
         raise ValueError("peak_tps must be positive")
 
     schedule = tuple(
         TrafficPoint(_clock_minute(item["time"]), float(item["multiplier"]))
-        for item in raw["traffic_schedule"]
+        for item in _mapping_list(raw.get("traffic_schedule"), "traffic_schedule")
     )
     if len(schedule) < 2 or tuple(sorted(point.minute for point in schedule)) != tuple(
         point.minute for point in schedule
@@ -113,25 +128,21 @@ def load_settings() -> Settings:
             duration_seconds=int(item["duration_seconds"]),
             **{
                 key: value
-                for key, value in item.get("effects", {}).items()
+                for key, value in _mapping(item.get("effects", {}), "event effects").items()
                 if key in EventDefinition.__dataclass_fields__
             },
         )
-        for item in raw["events"]
+        for item in _mapping_list(raw.get("events"), "events")
     )
 
-    values = raw["baseline"]
+    values = _mapping(raw.get("baseline"), "baseline")
     baseline = ServiceBaseline(
         auth_success_min=_rate(values["auth_success_min"], "auth_success_min"),
         auth_success_max=_rate(values["auth_success_max"], "auth_success_max"),
         otp_delivery_min=_rate(values["otp_delivery_min"], "otp_delivery_min"),
         otp_delivery_max=_rate(values["otp_delivery_max"], "otp_delivery_max"),
-        otp_verification_min=_rate(
-            values["otp_verification_min"], "otp_verification_min"
-        ),
-        otp_verification_max=_rate(
-            values["otp_verification_max"], "otp_verification_max"
-        ),
+        otp_verification_min=_rate(values["otp_verification_min"], "otp_verification_min"),
+        otp_verification_max=_rate(values["otp_verification_max"], "otp_verification_max"),
         token_success_rate=_rate(values["token_success_rate"], "token_success_rate"),
         http_5xx_rate=_rate(values["http_5xx_rate"], "http_5xx_rate"),
         auth_latency_p50_seconds=float(values["auth_latency_p50_seconds"]),

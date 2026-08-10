@@ -14,10 +14,7 @@ class RandomModel:
     def smooth_noise(self, key: str, limit: float, persistence: float = 0.82) -> float:
         previous = self._noise.get(key, 0.0)
         innovation = self._random.gauss(0.0, limit / 2)
-        value = (
-            persistence * previous
-            + math.sqrt(1 - persistence**2) * innovation
-        )
+        value = persistence * previous + math.sqrt(1 - persistence**2) * innovation
         value = max(-limit, min(limit, value))
         self._noise[key] = value
         return value
