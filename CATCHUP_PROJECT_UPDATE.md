@@ -20,6 +20,49 @@ Hệ thống hướng tới việc giúp đội vận hành trả lời nhanh c�
 - Xây dựng metric contract, label policy và nguyên tắc kiểm soát cardinality/PII.
 - Viết tài liệu KPI/SLI/SLO, deployment, GitOps và runbook xử lý sự cố.
 
+V-ID Services
+     │
+     │ expose /metrics
+     ▼
+ServiceMonitor / PodMonitor
+     │
+     │ discovery target
+     ▼
+Prometheus
+     │
+     │ scrape metrics
+     ▼
+Raw Metrics
+     │
+     ▼
+Recording Rules
+     │
+     │ tính toán / aggregate
+     ▼
+SLI / KPI Metrics
+     │
+     │ so sánh threshold / SLO
+     ▼
+Prometheus Alert Rules
+     │
+     │ alert = FIRING
+     ▼
+Alertmanager
+     │
+     ├── Group alert
+     ├── Deduplicate
+     ├── Silence / Inhibit
+     └── Route
+          │
+          ▼
+ Teams / Email / Webhook / On-call
+          │
+          ▼
+      DevOps / SRE
+          │
+          ▼
+ Investigate → Fix → Resolve
+
 ### Metrics Simulator
 
 - Xây dựng service FastAPI sinh mock metrics khi metrics thật chưa sẵn sàng.
