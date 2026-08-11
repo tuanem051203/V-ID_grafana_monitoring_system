@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+generated/
+secrets/*
+!secrets/README.md

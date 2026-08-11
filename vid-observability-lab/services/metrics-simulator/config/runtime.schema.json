@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vid.example/schemas/metrics-simulator-runtime.schema.json",
+  "title": "V-ID metrics simulator runtime configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "environments",
+    "noise_ratio",
+    "load_profiles",
+    "traffic_schedule",
+    "baseline",
+    "events",
+    "cross_region"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "environments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/environment"}
+    },
+    "noise_ratio": {"type": "number", "minimum": 0, "maximum": 0.2},
+    "load_profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["peak_tps"],
+        "properties": {"peak_tps": {"type": "number", "exclusiveMinimum": 0}}
+      }
+    },
+    "traffic_schedule": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["time", "multiplier"],
+        "properties": {
+          "time": {"type": "string", "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$"},
+          "multiplier": {"type": "number", "minimum": 0}
+        }
+      }
+    },
+    "baseline": {"type": "object"},
+    "cross_region": {"$ref": "#/$defs/crossRegion"},
+    "events": {"type": "array", "items": {"type": "object"}}
+  },
+  "$defs": {
+    "crossRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "source_region", "traffic_ratio", "latency_sigma", "destinations"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "source_region": {"type": "string", "pattern": "^[a-z]{2}$"},
+        "traffic_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+        "latency_sigma": {"type": "number", "exclusiveMinimum": 0},
+        "destinations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/crossRegionDestination"}
+        }
+      }
+    },
+    "crossRegionDestination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destination_region", "traffic_weight", "hops"],
+      "properties": {
+        "destination_region": {"type": "string", "pattern": "^[a-z]{2}$"},
+        "traffic_weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "hops": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/crossRegionHop"}}
+      }
+    },
+    "crossRegionHop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "latency_p50_seconds", "failure_rate"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "latency_p50_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "failure_rate": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "load_profile",
+        "generation_interval_seconds",
+        "simulation_day_seconds",
+        "random_seed"
+      ],
+      "properties": {
+        "load_profile": {"type": "string", "minLength": 1},
+        "generation_interval_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "simulation_day_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "random_seed": {"type": "integer"}
+      }
+    }
+  }
+}

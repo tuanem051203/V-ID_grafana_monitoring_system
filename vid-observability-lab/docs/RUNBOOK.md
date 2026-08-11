@@ -1,7 +1,8 @@
 # V-ID Monitoring Runbook
 
-Replace `REPLACE-WITH-DOCS-HOST` in alert annotations with the published runbook
-base URL before production.
+The published runbook base URL is configured per environment in
+`deployments/config.json`. Alert annotations receive the resolved URL during
+configuration rendering.
 
 ## First response for every alert
 

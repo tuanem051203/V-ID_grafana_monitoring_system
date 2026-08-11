@@ -38,7 +38,10 @@ vid-observability-lab/
 │   ├── grafana/                 # Dashboard và provisioning
 │   └── alertmanager/            # Local/UAT routing
 ├── deployments/
-│   └── local/docker-compose.yml # Chỉ dùng cho local/UAT
+│   ├── config.json              # Deployment config theo environment
+│   ├── config.schema.json
+│   └── templates/               # Compose/Prometheus/Alertmanager/Grafana
+├── generated/                   # Artifact được render, không commit
 ├── tests/
 │   └── prometheus/              # Rule unit tests
 ├── docs/                        # KPI contract và runbook
@@ -86,10 +89,11 @@ Authorization, Traffic, Errors, Infrastructure và Database.
 ## Chạy local/UAT
 
 ```bash
-export GRAFANA_ADMIN_PASSWORD='change-me'
-export VID_LOAD_PROFILE='development'
-docker compose -f deployments/local/docker-compose.yml up --build -d
-docker compose -f deployments/local/docker-compose.yml ps
+cp .env.example .env
+# Thay các giá trị change-me trong .env trước khi chạy.
+python3 scripts/render-config.py --environment local
+docker compose --env-file .env -f generated/local/docker-compose.yml up --build -d
+docker compose --env-file .env -f generated/local/docker-compose.yml ps
 curl http://localhost:8000/health
 curl http://localhost:8000/metrics
 ```
@@ -120,9 +124,26 @@ gia đích và có kịch bản suy giảm riêng cho route Indonesia. Chi tiế
 giới hạn dữ liệu và lộ trình
 instrumentation thật nằm tại [`docs/CROSS-REGION-MONITORING.md`](docs/CROSS-REGION-MONITORING.md).
 
-Datasource dùng UID ổn định `prometheus` và URL Docker nội bộ
-`http://prometheus:9090`. Dashboard hỗ trợ filter `environment`, `cluster` và
-giữ nguyên filter/time range khi chuyển qua các dashboard chi tiết.
+Datasource dùng UID ổn định `prometheus`; URL nội bộ được lấy từ
+`deployments/config.json`. Dashboard mặc định chọn `All` cho `environment` và
+`cluster`, vì vậy không bị khóa vào local khi promote sang môi trường khác.
+
+## Cấu hình theo môi trường
+
+`deployments/config.json` là nguồn sự thật cho image version, host port, scrape
+target, label environment/cluster, Grafana datasource/public URL, runbook base
+URL và Alertmanager SMTP/routing. Không sửa file trong `generated/` vì chúng sẽ
+bị ghi đè ở lần render kế tiếp.
+
+```bash
+python3 scripts/render-config.py --environment local
+python3 scripts/render-config.py --environment uat
+python3 scripts/render-config.py --environment production
+```
+
+Mỗi lệnh sinh Compose, Prometheus config/rules, Alertmanager config, Grafana
+datasource và `resolved.json` dưới `generated/<environment>/`. Password vẫn được
+inject bằng Docker/Kubernetes Secret và không nằm trong JSON.
 
 Có thể chạy riêng mock service bằng Python 3.11+:
 
@@ -137,15 +158,15 @@ PYTHONPATH=src uvicorn vid_mock_metrics.main:app --host 0.0.0.0 --port 8000
 ## Traffic profile và thời gian mô phỏng
 
 ```bash
-VID_LOAD_PROFILE=uat \
-  docker compose -f deployments/local/docker-compose.yml up --build -d
-curl http://localhost:8000/api/simulation
+python3 scripts/render-config.py --environment uat
+docker compose --env-file .env -f generated/uat/docker-compose.yml up --build -d
 ```
 
 Các profile `development`, `uat`, `production`, `peak` lần lượt có peak 20, 100,
-500 và 2000 TPS. `VID_SIMULATION_DAY_SECONDS=3600` nén một ngày mô phỏng vào một
-giờ để demo toàn bộ incident. Traffic curve, baseline và event nằm tại
-`services/metrics-simulator/config/simulation.yaml`.
+500 và 2000 TPS. `APP_ENV` chỉ chọn environment; toàn bộ profile, simulation day,
+random seed, traffic curve, baseline và event nằm tại
+`services/metrics-simulator/config/runtime.json`. Environment `peak` nén một ngày
+mô phỏng vào một giờ. JSON Schema nằm cùng thư mục để kiểm tra cấu trúc.
 
 ## PromQL
 

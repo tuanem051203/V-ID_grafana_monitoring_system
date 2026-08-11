@@ -13,7 +13,7 @@ ownership.
 | `observability/prometheus` | SRE/observability | `promtool check/test rules` |
 | `observability/grafana` | SRE + service owners | JSON/schema and dashboard review |
 | `observability/alertmanager` | SRE/on-call governance | `amtool check-config`, routing review |
-| `deployments/local` | Developer experience | `docker compose config`, smoke test |
+| `deployments/config.json` and `templates` | Platform engineering | render, schema, Compose and tool validation |
 | `tests/prometheus` | SRE + KPI owners | Rule behavior tests |
 | `docs` | KPI owners + SRE | Approval and runbook review |
 | `scripts` | Platform engineering | Reproducible validation entry points |
@@ -29,13 +29,15 @@ local deployment profile.
 ## Production repository expectations
 
 Before adopting this workspace for production, the owning organization must
-choose the platform-specific structure rather than copying local Compose:
+choose the platform-specific delivery mechanism. The current renderer provides
+deterministic artifacts for local validation; Kubernetes should consume the
+same reviewed values through Helm/Kustomize or the platform standard:
 
 ```text
 deployments/
-├── local/
-├── uat/          # Helm values or Kustomize overlay
-└── production/   # Reviewed promotion artifact, no plaintext secrets
+├── config.json
+├── templates/
+└── kubernetes/   # Helm values or Kustomize overlays, if adopted
 ```
 
 A production repository should additionally provide:

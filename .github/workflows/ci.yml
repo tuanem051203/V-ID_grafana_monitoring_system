@@ -19,8 +19,6 @@ defaults:
 
 env:
   PYTHON_VERSION: "3.11"
-  PROMETHEUS_IMAGE: prom/prometheus:v3.5.0
-  ALERTMANAGER_IMAGE: prom/alertmanager:v0.28.1
 
 jobs:
   python-quality:
@@ -78,7 +76,11 @@ jobs:
         run: ./scripts/ci-observability.sh
 
       - name: Validate Docker Compose model
-        run: docker compose -f deployments/local/docker-compose.yml config --quiet
+        run: |
+          python scripts/render-config.py --environment local
+          GRAFANA_ADMIN_PASSWORD=validation-only \
+          VID_SMTP_APP_PASSWORD=validation-only \
+            docker compose -f generated/local/docker-compose.yml config --quiet
 
   dependency-audit:
     name: Python dependency audit

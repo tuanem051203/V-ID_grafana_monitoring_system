@@ -12,8 +12,8 @@ groups:
         annotations:
           summary: "V-ID metrics target is down"
           description: "Prometheus cannot scrape {{ $labels.instance }} in {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/sso-reliability"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/metrics-target-down"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-reliability"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/metrics-target-down"
 
       - alert: VIDRecordingRulesFailing
         expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
@@ -25,8 +25,8 @@ groups:
         annotations:
           summary: "Prometheus recording rule evaluation is failing"
           description: "Prometheus {{ $labels.instance }} reported rule evaluation failures."
-          dashboard_url: "http://localhost:3000/d/sso-reliability"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/rule-evaluation-failure"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-reliability"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/rule-evaluation-failure"
 
       - alert: VIDEligibleTrafficMissing
         expr: |
@@ -41,8 +41,8 @@ groups:
         annotations:
           summary: "No eligible V-ID traffic"
           description: "No eligible KPI traffic has been observed for 10 minutes. Check traffic, instrumentation and scrape health."
-          dashboard_url: "http://localhost:3000/d/sso-reliability"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/no-eligible-traffic"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-reliability"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/no-eligible-traffic"
 
   - name: vid-slo-burn-rate
     interval: 30s
@@ -62,8 +62,8 @@ groups:
         annotations:
           summary: "Authentication success SLO is burning fast"
           description: "Error budget burn rate is above 14.4x on both 5m and 1h windows for {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/sso-authentication"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/authentication-success"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-authentication"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/authentication-success"
 
       - alert: VIDAuthenticationLatencyFastBurn
         expr: |
@@ -79,8 +79,8 @@ groups:
         annotations:
           summary: "Authentication latency SLO is burning fast"
           description: "The under-500ms error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/sso-authentication"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/authentication-latency"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-authentication"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/authentication-latency"
 
       - alert: VIDOTPDeliveryFastBurn
         expr: |
@@ -96,8 +96,8 @@ groups:
         annotations:
           summary: "OTP delivery SLO is burning fast"
           description: "OTP delivery error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/sso-mfa-otp"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-delivery"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-mfa-otp"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-delivery"
 
       - alert: VIDTokenIssuanceFastBurn
         expr: |
@@ -113,8 +113,8 @@ groups:
         annotations:
           summary: "Token issuance SLO is burning fast"
           description: "Token issuance error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/sso-token-lifecycle"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/token-issuance"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-token-lifecycle"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/token-issuance"
 
       - alert: VIDPlatformAvailabilityFastBurn
         expr: |
@@ -130,8 +130,8 @@ groups:
         annotations:
           summary: "Platform availability SLO is burning fast"
           description: "Platform availability error budget is burning above 14.4x on 5m and 1h windows."
-          dashboard_url: "http://localhost:3000/d/sso-platform"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/platform-availability"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-platform"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/platform-availability"
 
       # Slow burn opens a ticket/warning instead of paging.
       - alert: VIDSLOSlowBurn
@@ -173,8 +173,8 @@ groups:
         annotations:
           summary: "A V-ID SLO is experiencing sustained slow burn"
           description: "Error budget burn is above 6x on both 1h and 6h windows. Inspect the SLO dashboard to identify the affected KPI."
-          dashboard_url: "http://localhost:3000/d/sso-reliability"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/slo-slow-burn"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-reliability"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/slo-slow-burn"
 
   - name: vid-symptoms
     interval: 30s
@@ -189,8 +189,8 @@ groups:
         annotations:
           summary: "OTP provider {{ $labels.provider }} is down"
           description: "Provider {{ $labels.provider }} reports DOWN in {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/sso-mfa-otp"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-provider-down"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-mfa-otp"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-provider-down"
 
       - alert: VIDOTPQueueBacklog
         expr: otp_queue_size > 100
@@ -202,5 +202,5 @@ groups:
         annotations:
           summary: "OTP queue backlog is high"
           description: "OTP queue has {{ $value }} messages in {{ $labels.environment }}/{{ $labels.cluster }}."
-          dashboard_url: "http://localhost:3000/d/sso-mfa-otp"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/otp-queue-backlog"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-mfa-otp"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-queue-backlog"

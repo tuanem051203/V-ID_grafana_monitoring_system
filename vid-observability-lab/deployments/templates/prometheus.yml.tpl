@@ -1,12 +1,12 @@
 global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
+  scrape_interval: @@PROMETHEUS_SCRAPE_INTERVAL@@
+  evaluation_interval: @@PROMETHEUS_EVALUATION_INTERVAL@@
 
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
-            - alertmanager:9093
+            - @@TARGETS_ALERTMANAGER@@
 
 rule_files:
   - /etc/prometheus/rules/*.yml
@@ -17,14 +17,14 @@ scrape_configs:
       - targets:
           - localhost:9090
         labels:
-          environment: local
-          cluster: docker-compose
+          environment: @@ENVIRONMENT@@
+          cluster: @@CLUSTER@@
 
   - job_name: vid-metrics-simulator
     metrics_path: /metrics
     static_configs:
       - targets:
-          - metrics-simulator:8000
+          - @@TARGETS_METRICS_SIMULATOR@@
         labels:
-          environment: local
-          cluster: docker-compose
+          environment: @@ENVIRONMENT@@
+          cluster: @@CLUSTER@@
