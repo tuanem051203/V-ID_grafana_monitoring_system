@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 
-from vid_mock_metrics.config import Settings
+from vid_mock_metrics.config import CrossRegionHop, Settings
 from vid_mock_metrics.events import EventEffects, EventScheduler
 from vid_mock_metrics.metrics import (
     APPLICATION_ERRORS,
@@ -15,6 +15,11 @@ from vid_mock_metrics.metrics import (
     AUTH_REQUESTS,
     AUTH_SUCCESS,
     AUTHORIZATION_DECISIONS,
+    CROSS_REGION_DURATION,
+    CROSS_REGION_FAILURES,
+    CROSS_REGION_HOP_DURATION,
+    CROSS_REGION_HOP_REQUESTS,
+    CROSS_REGION_REQUESTS,
     DATABASE_CONNECTIONS,
     DATABASE_MAX_CONNECTIONS,
     DATABASE_QUERIES,
@@ -82,6 +87,11 @@ class MetricsGenerator:
         self._anchor_monotonic = time.monotonic()
         self._manual_otp_queue_deadline = 0.0
         self._manual_otp_queue_size = 0
+        self._manual_cross_region_deadline = 0.0
+        self._manual_cross_region_destination = "id"
+        self._manual_cross_region_hop = "dc_to_destination"
+        self._manual_cross_region_latency_multiplier = 1.0
+        self._manual_cross_region_failure_rate = 0.0
         self._snapshot = SimulationSnapshot(
             settings.load_profile.name,
             now.strftime("%H:%M:%S"),
@@ -120,6 +130,46 @@ class MetricsGenerator:
             "remaining_seconds": round(remaining, 1),
         }
 
+    def activate_cross_region_degradation(
+        self,
+        duration_seconds: int,
+        destination_region: str,
+        hop: str,
+        latency_multiplier: float,
+        failure_rate: float,
+    ) -> dict[str, object]:
+        destinations = {
+            item.destination_region: item for item in self._settings.cross_region.destinations
+        }
+        if destination_region not in destinations:
+            raise ValueError(f"Unknown cross-region destination {destination_region!r}")
+        allowed_hops = {item.name for item in destinations[destination_region].hops}
+        if hop not in allowed_hops:
+            raise ValueError(f"Unknown cross-region hop {hop!r}")
+        self._manual_cross_region_deadline = time.monotonic() + duration_seconds
+        self._manual_cross_region_destination = destination_region
+        self._manual_cross_region_hop = hop
+        self._manual_cross_region_latency_multiplier = latency_multiplier
+        self._manual_cross_region_failure_rate = failure_rate
+        return self.cross_region_degradation_state()
+
+    def clear_cross_region_degradation(self) -> dict[str, object]:
+        self._manual_cross_region_deadline = 0.0
+        return self.cross_region_degradation_state()
+
+    def cross_region_degradation_state(self) -> dict[str, object]:
+        remaining = max(0.0, self._manual_cross_region_deadline - time.monotonic())
+        active = remaining > 0
+        return {
+            "scenario": "cross_region_degradation",
+            "active": active,
+            "destination_region": self._manual_cross_region_destination,
+            "hop": self._manual_cross_region_hop,
+            "latency_multiplier": self._manual_cross_region_latency_multiplier,
+            "failure_rate": self._manual_cross_region_failure_rate,
+            "remaining_seconds": round(remaining, 1),
+        }
+
     async def run(self) -> None:
         while True:
             started = time.monotonic()
@@ -135,6 +185,15 @@ class MetricsGenerator:
     def generate_at(self, second_of_day: float) -> SimulationSnapshot:
         effects = self._scheduler.active_at(second_of_day)
         manual_warning_active = self._manual_otp_queue_deadline > time.monotonic()
+        manual_cross_region_active = self._manual_cross_region_deadline > time.monotonic()
+        if manual_cross_region_active:
+            effects = replace(
+                effects,
+                cross_region_affected_hop=self._manual_cross_region_hop,
+                cross_region_affected_destination=self._manual_cross_region_destination,
+                cross_region_latency_multiplier=self._manual_cross_region_latency_multiplier,
+                cross_region_failure_rate=self._manual_cross_region_failure_rate,
+            )
         baseline_tps = self._traffic.tps_at(second_of_day / 60)
         tps = baseline_tps * effects.traffic_multiplier
         count = self._random.event_count(tps * self._settings.generation_interval_seconds)
@@ -144,7 +203,9 @@ class MetricsGenerator:
         self._generate_token(count, effects)
         self._generate_platform(count, tps, effects)
         self._generate_supporting_metrics(count, tps, effects, manual_warning_active)
-        self._set_simulation_state(tps, effects)
+        self._set_simulation_state(
+            tps, effects, manual_warning_active, manual_cross_region_active
+        )
 
         hour = int(second_of_day // 3600)
         minute = int(second_of_day % 3600 // 60)
@@ -153,7 +214,9 @@ class MetricsGenerator:
             self._settings.load_profile.name,
             f"{hour:02d}:{minute:02d}:{second:02d}",
             round(tps, 2),
-            effects.names + (("manual_otp_queue_backlog",) if manual_warning_active else ()),
+            effects.names
+            + (("manual_otp_queue_backlog",) if manual_warning_active else ())
+            + (("manual_cross_region_degradation",) if manual_cross_region_active else ()),
         )
         LOGGER.info(
             "Generated production-like metric batch",
@@ -306,6 +369,88 @@ class MetricsGenerator:
                 HTTP_DURATION.labels(service, endpoint, "POST").observe(
                     self._random.lognormal_latency(0.10, 0.62, latency_multiplier)
                 )
+        self._generate_cross_region(route_counts, effects)
+
+    def _generate_cross_region(
+        self, route_counts: tuple[int, ...], effects: EventEffects
+    ) -> None:
+        """Generate bounded RED metrics for the configured multi-hop route."""
+        route = self._settings.cross_region
+        if not route.enabled:
+            return
+        for (service, endpoint, _), platform_total in zip(ROUTES, route_counts):
+            total = self._random.event_count(platform_total * route.traffic_ratio)
+            operation = endpoint.strip("/").replace("/", "_")
+            destination_counts = self._random.split(
+                total,
+                tuple(item.traffic_weight for item in route.destinations),
+            )
+            for destination, destination_total in zip(
+                route.destinations, destination_counts
+            ):
+                self._generate_cross_region_destination(
+                    route.source_region,
+                    destination.destination_region,
+                    destination.hops,
+                    destination_total,
+                    service,
+                    operation,
+                    effects,
+                )
+
+    def _generate_cross_region_destination(
+        self,
+        source_region: str,
+        destination_region: str,
+        hops: tuple[CrossRegionHop, ...],
+        total: int,
+        service: str,
+        operation: str,
+        effects: EventEffects,
+    ) -> None:
+        route = self._settings.cross_region
+        for _ in range(total):
+            end_to_end_duration = 0.0
+            terminal_result = "success"
+            for hop in hops:
+                affected = (
+                    effects.cross_region_affected_destination == destination_region
+                    and effects.cross_region_affected_hop == hop.name
+                )
+                multiplier = effects.cross_region_latency_multiplier if affected else 1.0
+                failure_rate = (
+                    effects.cross_region_failure_rate
+                    if affected and effects.cross_region_failure_rate is not None
+                    else hop.failure_rate
+                )
+                duration = self._random.lognormal_latency(
+                    hop.latency_p50_seconds, route.latency_sigma, multiplier
+                )
+                failed = self._random.split(1, (1 - failure_rate, failure_rate))[1] == 1
+                result = "failure" if failed else "success"
+                CROSS_REGION_HOP_REQUESTS.labels(
+                    source_region, destination_region, hop.name, service, result
+                ).inc()
+                CROSS_REGION_HOP_DURATION.labels(
+                    source_region, destination_region, hop.name, service, result
+                ).observe(duration)
+                end_to_end_duration += duration
+                if failed:
+                    terminal_result = "failure"
+                    CROSS_REGION_FAILURES.labels(
+                        source_region,
+                        destination_region,
+                        service,
+                        hop.name,
+                        "timeout" if affected else "connection_error",
+                    ).inc()
+                    break
+            CROSS_REGION_REQUESTS.labels(
+                source_region, destination_region, service, operation, terminal_result
+            ).inc()
+            CROSS_REGION_DURATION.labels(
+                source_region, destination_region, service, operation, terminal_result
+            ).observe(end_to_end_duration)
 
     def _generate_supporting_metrics(
         self,
@@ -399,8 +544,20 @@ class MetricsGenerator:
                 max(1, round(auth_count * 0.01))
             )
 
-    def _set_simulation_state(self, tps: float, effects: EventEffects) -> None:
+    def _set_simulation_state(
+        self,
+        tps: float,
+        effects: EventEffects,
+        manual_otp_queue_warning: bool,
+        manual_cross_region_degradation: bool,
+    ) -> None:
         SIMULATION_TPS.labels(self._settings.load_profile.name).set(tps)
         active_names = set(effects.names)
         for definition in self._settings.events:
             SIMULATION_EVENT_ACTIVE.labels(definition.name).set(definition.name in active_names)
+        SIMULATION_EVENT_ACTIVE.labels("manual_otp_queue_backlog").set(
+            manual_otp_queue_warning
+        )
+        SIMULATION_EVENT_ACTIVE.labels("manual_cross_region_degradation").set(
+            manual_cross_region_degradation
+        )

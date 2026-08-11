@@ -65,6 +65,21 @@ base URL before production.
 - Verify that the critical-endpoint allowlist is still correct.
 - Coordinate incident ownership when multiple identity services are affected.
 
+## Cross-region request incident
+
+- Confirm source/destination region, affected service, route volume and whether
+  telemetry exists on both sides of every expected hop.
+- Compare the affected country with the other eight destinations to determine
+  whether the incident is route-specific or shared by the VN/DC gateway.
+- Compare end-to-end p95/success with hop p95/error ratio on **V-ID SSO —
+  Cross-region Requests**; identify the first degraded hop.
+- Check gateway health, DNS, TLS, network policy, route changes, saturation and
+  the most recent deployment in both regions.
+- Use a privacy-reviewed trace sample to correlate the request across gateways;
+  never copy phone numbers, tokens or OTP values into incident notes.
+- Traffic shift, failover or route removal requires the approved network/service
+  procedure. Confirm recovery on success rate and latency before closure.
+
 ## Closure
 
 Record impact, timeline, root cause, mitigation, dashboard evidence and follow-up

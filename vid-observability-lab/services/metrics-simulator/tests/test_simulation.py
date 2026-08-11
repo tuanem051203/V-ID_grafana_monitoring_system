@@ -4,6 +4,9 @@ import statistics
 import unittest
 
 from vid_mock_metrics.config import (
+    CrossRegionConfig,
+    CrossRegionDestination,
+    CrossRegionHop,
     EventDefinition,
     LoadProfile,
     ServiceBaseline,
@@ -143,6 +146,32 @@ class MetricsGeneratorTest(unittest.TestCase):
                 auth_latency_sigma=0.64,
                 token_latency_p50_seconds=0.08,
             ),
+            cross_region=CrossRegionConfig(
+                enabled=True,
+                source_region="vn",
+                traffic_ratio=0.25,
+                latency_sigma=0.01,
+                destinations=(
+                    CrossRegionDestination(
+                        "us",
+                        0.5,
+                        (
+                            CrossRegionHop("vn_to_dc", 0.04, 0.0),
+                            CrossRegionHop("dc_to_destination", 0.22, 0.0),
+                            CrossRegionHop("destination_to_service", 0.06, 0.0),
+                        ),
+                    ),
+                    CrossRegionDestination(
+                        "id",
+                        0.5,
+                        (
+                            CrossRegionHop("vn_to_dc", 0.04, 0.0),
+                            CrossRegionHop("dc_to_destination", 0.08, 0.0),
+                            CrossRegionHop("destination_to_service", 0.04, 0.0),
+                        ),
+                    ),
+                ),
+            ),
         )
         generator = MetricsGenerator(settings)
         before = generator.generate_at(559 * 60)
@@ -198,6 +227,31 @@ class MetricsGeneratorTest(unittest.TestCase):
             counter_total("http_requests_5xx_total"),
             counter_total("http_requests_total"),
         )
+        self.assertGreater(counter_total("cross_region_requests_total"), 0)
+        self.assertEqual(
+            counter_total("cross_region_requests_total"),
+            counter_total("cross_region_request_duration_seconds_count"),
+        )
+
+    def test_cross_region_event_is_scoped_to_configured_hop(self) -> None:
+        scheduler = EventScheduler(
+            (
+                EventDefinition(
+                    "dc_link_degraded",
+                    600,
+                    300,
+                    cross_region_latency_multiplier=4.0,
+                    cross_region_failure_rate=0.2,
+                    cross_region_affected_hop="dc_to_destination",
+                    cross_region_affected_destination="id",
+                ),
+            )
+        )
+        active = scheduler.active_at(600 * 60)
+        self.assertEqual(active.cross_region_affected_hop, "dc_to_destination")
+        self.assertEqual(active.cross_region_affected_destination, "id")
+        self.assertEqual(active.cross_region_latency_multiplier, 4.0)
+        self.assertEqual(active.cross_region_failure_rate, 0.2)
 
 
 if __name__ == "__main__":

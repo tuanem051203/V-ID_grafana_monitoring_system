@@ -2,6 +2,69 @@ default_profile: development
 random_seed: 20250730
 noise_ratio: 0.05
 
+# Bounded synthetic route used to validate cross-region observability. It is
+# not evidence of the actual production network path or performance.
+cross_region:
+  enabled: true
+  source_region: vn
+  traffic_ratio: 0.10
+  latency_sigma: 0.35
+  destinations:
+    - destination_region: us
+      traffic_weight: 0.20
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.22, failure_rate: 0.003}
+        - {name: destination_to_service, latency_p50_seconds: 0.06, failure_rate: 0.001}
+    - destination_region: dk
+      traffic_weight: 0.06
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.20, failure_rate: 0.003}
+        - {name: destination_to_service, latency_p50_seconds: 0.05, failure_rate: 0.001}
+    - destination_region: id
+      traffic_weight: 0.18
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.08, failure_rate: 0.002}
+        - {name: destination_to_service, latency_p50_seconds: 0.04, failure_rate: 0.001}
+    - destination_region: ph
+      traffic_weight: 0.15
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.10, failure_rate: 0.002}
+        - {name: destination_to_service, latency_p50_seconds: 0.04, failure_rate: 0.001}
+    - destination_region: la
+      traffic_weight: 0.10
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.04, failure_rate: 0.002}
+        - {name: destination_to_service, latency_p50_seconds: 0.03, failure_rate: 0.001}
+    - destination_region: in
+      traffic_weight: 0.15
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.12, failure_rate: 0.002}
+        - {name: destination_to_service, latency_p50_seconds: 0.04, failure_rate: 0.001}
+    - destination_region: kz
+      traffic_weight: 0.05
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.16, failure_rate: 0.003}
+        - {name: destination_to_service, latency_p50_seconds: 0.05, failure_rate: 0.001}
+    - destination_region: ru
+      traffic_weight: 0.06
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.18, failure_rate: 0.003}
+        - {name: destination_to_service, latency_p50_seconds: 0.05, failure_rate: 0.001}
+    - destination_region: nl
+      traffic_weight: 0.05
+      hops:
+        - {name: vn_to_dc, latency_p50_seconds: 0.04, failure_rate: 0.001}
+        - {name: dc_to_destination, latency_p50_seconds: 0.20, failure_rate: 0.003}
+        - {name: destination_to_service, latency_p50_seconds: 0.05, failure_rate: 0.001}
+
 load_profiles:
   development:
     peak_tps: 20
@@ -79,3 +142,12 @@ events:
     effects:
       http_5xx_rate: 0.50
       unavailable_pods: 2
+  - name: indonesia_route_degradation
+    start: "19:30"
+    duration_seconds: 600
+    ramp_seconds: 60
+    effects:
+      cross_region_affected_destination: id
+      cross_region_affected_hop: dc_to_destination
+      cross_region_latency_multiplier: 4.0
+      cross_region_failure_rate: 0.20

@@ -115,6 +115,41 @@ HTTP_DURATION = Histogram(
     registry=REGISTRY,
 )
 
+# Cross-region RED metrics. Labels are deliberately bounded; request/trace/user
+# identifiers belong in logs or traces, never in Prometheus labels.
+CROSS_REGION_REQUESTS = Counter(
+    "cross_region_requests",
+    "End-to-end requests routed between V-ID regions.",
+    ["source_region", "destination_region", "service", "operation", "result"],
+    registry=REGISTRY,
+)
+CROSS_REGION_DURATION = Histogram(
+    "cross_region_request_duration_seconds",
+    "End-to-end cross-region request duration in seconds.",
+    ["source_region", "destination_region", "service", "operation", "result"],
+    buckets=(0.025, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10),
+    registry=REGISTRY,
+)
+CROSS_REGION_HOP_REQUESTS = Counter(
+    "cross_region_hop_requests",
+    "Requests observed at a bounded cross-region route hop.",
+    ["source_region", "destination_region", "hop", "service", "result"],
+    registry=REGISTRY,
+)
+CROSS_REGION_HOP_DURATION = Histogram(
+    "cross_region_hop_duration_seconds",
+    "Cross-region request duration at each route hop.",
+    ["source_region", "destination_region", "hop", "service", "result"],
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1, 1.5, 2, 3, 5),
+    registry=REGISTRY,
+)
+CROSS_REGION_FAILURES = Counter(
+    "cross_region_failures",
+    "Terminal cross-region failures classified by route stage and reason.",
+    ["source_region", "destination_region", "service", "stage", "reason"],
+    registry=REGISTRY,
+)
+
 # Supporting raw operational metrics
 AUTHORIZATION_DECISIONS = Counter(
     "authorization_decisions",

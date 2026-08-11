@@ -101,7 +101,7 @@ Các URL:
 - Grafana: http://localhost:3000
 - Alertmanager: http://localhost:9093
 
-Prometheus datasource và năm dashboard được provision tự động:
+Prometheus datasource và các dashboard được provision tự động:
 
 - **V-ID — Overview**: KPI, trend, latency, traffic và symptom.
 - **V-ID — Identity & Access**: authentication, OTP, token và authorization.
@@ -111,6 +111,14 @@ Prometheus datasource và năm dashboard được provision tự động:
   connection và error.
 - **V-ID — SLO & Operations**: telemetry health, eligible traffic, error budget,
   burn rate và active alerts.
+- **V-ID SSO — Cross-region Requests**: country overview và RED metrics theo
+  từng hop cho authentication, OTP và token request từ Việt Nam đến Mỹ, Đan
+  Mạch, Indonesia, Philippines, Lào, Ấn Độ, Kazakhstan, Nga và Hà Lan.
+
+Cross-region simulator phát 10% platform traffic qua các route VN -> DC -> quốc
+gia đích và có kịch bản suy giảm riêng cho route Indonesia. Chi tiết metric,
+giới hạn dữ liệu và lộ trình
+instrumentation thật nằm tại [`docs/CROSS-REGION-MONITORING.md`](docs/CROSS-REGION-MONITORING.md).
 
 Datasource dùng UID ổn định `prometheus` và URL Docker nội bộ
 `http://prometheus:9090`. Dashboard hỗ trợ filter `environment`, `cluster` và

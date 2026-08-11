@@ -19,6 +19,10 @@ class EventEffects:
     database_latency_multiplier: float = 1.0
     database_error_rate: float | None = None
     unavailable_pods: int = 0
+    cross_region_latency_multiplier: float = 1.0
+    cross_region_failure_rate: float | None = None
+    cross_region_affected_hop: str | None = None
+    cross_region_affected_destination: str | None = None
 
 
 class EventScheduler:
@@ -40,6 +44,21 @@ class EventScheduler:
             event.database_error_rate
             for event, _ in active
             if event.database_error_rate is not None
+        ]
+        cross_region_rates = [
+            event.cross_region_failure_rate
+            for event, _ in active
+            if event.cross_region_failure_rate is not None
+        ]
+        affected_hops = [
+            event.cross_region_affected_hop
+            for event, _ in active
+            if event.cross_region_affected_hop is not None
+        ]
+        affected_destinations = [
+            event.cross_region_affected_destination
+            for event, _ in active
+            if event.cross_region_affected_destination is not None
         ]
         return EventEffects(
             names=tuple(event.name for event, _ in active),
@@ -69,6 +88,17 @@ class EventScheduler:
             unavailable_pods=max(
                 round(event.unavailable_pods * weight) for event, weight in active
             ),
+            cross_region_latency_multiplier=math_product(
+                1 + (event.cross_region_latency_multiplier - 1) * weight
+                for event, weight in active
+            ),
+            cross_region_failure_rate=max(cross_region_rates)
+            if cross_region_rates
+            else None,
+            cross_region_affected_hop=affected_hops[-1] if affected_hops else None,
+            cross_region_affected_destination=affected_destinations[-1]
+            if affected_destinations
+            else None,
         )
 
 

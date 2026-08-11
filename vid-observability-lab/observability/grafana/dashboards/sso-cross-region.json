@@ -1,0 +1,107 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "prometheus", "uid": "prometheus"}, "enable": true, "hide": false, "iconColor": "orange", "name": "Sự kiện mô phỏng", "target": {"expr": "simulation_event_active{environment=~\"$environment\",cluster=~\"$cluster\"} == 1", "legendFormat": "{{event}}", "range": true, "refId": "events"}, "type": "dashboard"}]},
+  "description": "RED monitoring cho request từ Việt Nam đến Mỹ, Đan Mạch, Indonesia, Philippines, Lào, Ấn Độ, Kazakhstan, Nga và Hà Lan; gồm country overview và drill-down từng route hop.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [{"asDropdown": true, "includeVars": true, "keepTime": true, "tags": ["sso"], "title": "SSO dashboards", "type": "dashboards"}],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Lưu lượng request liên vùng theo service và route, dùng để phát hiện thay đổi routing hoặc mất traffic.",
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 0}, "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(vid:cross_region_requests:rate5m{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"})", "legendFormat": "request/s", "refId": "A"}],
+      "title": "Cross-region request rate", "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Tỷ lệ request hoàn tất qua toàn bộ route; thấp hơn 95% kích hoạt cảnh báo sau cửa sổ xác nhận.",
+      "fieldConfig": {"defaults": {"min": 0, "max": 1, "unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 0.95}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 0}, "id": 2,
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(rate(cross_region_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\",result=\"success\"}[5m])) / clamp_min(sum(rate(cross_region_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"}[5m])), 1e-9)", "legendFormat": "success", "refId": "A"}],
+      "title": "End-to-end success rate", "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "p95 latency end-to-end của route liên vùng; metric bao gồm thời gian của các hop đã đi qua.",
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 0}, "id": 3,
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "max(vid:cross_region_latency:p95_5m{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"})", "legendFormat": "p95", "refId": "A"}],
+      "title": "End-to-end p95 latency", "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Phân bổ request rate theo quốc gia đích, giúp phát hiện route mất traffic hoặc thay đổi phân phối bất thường.",
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 5}, "id": 7,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "sum by (destination_region) (rate(cross_region_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"}[5m]))", "legendFormat": "{{destination_region}}", "refId": "A"}],
+      "title": "Traffic theo quốc gia", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Success rate end-to-end có trọng số traffic theo quốc gia; dùng để so sánh nhanh sức khỏe của chín destination.",
+      "fieldConfig": {"defaults": {"min": 0, "max": 1, "unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.95}, {"color": "green", "value": 0.99}]}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 5}, "id": 8,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}, "showUnfilled": true},
+      "targets": [{"expr": "sum by (destination_region) (rate(cross_region_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\",result=\"success\"}[5m])) / clamp_min(sum by (destination_region) (rate(cross_region_requests_total{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"}[5m])), 1e-9)", "legendFormat": "{{destination_region}}", "refId": "A"}],
+      "title": "Success rate theo quốc gia", "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "p95 end-to-end theo quốc gia, tính lại trên toàn bộ service để tránh trung bình các percentile.",
+      "fieldConfig": {"defaults": {"min": 0, "unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.75}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 5}, "id": 9,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}, "showUnfilled": true},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (destination_region, le) (rate(cross_region_request_duration_seconds_bucket{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"}[5m])))", "legendFormat": "{{destination_region}}", "refId": "A"}],
+      "title": "p95 latency theo quốc gia", "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Phân rã p95 latency theo hop để xác định gateway, đường truyền liên vùng hoặc service đích đang gây chậm sau khi chọn quốc gia.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13}, "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "max by (hop, service) (vid:cross_region_hop_latency:p95_5m{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"})", "legendFormat": "{{hop}} / {{service}}", "refId": "A"}],
+      "title": "p95 latency theo hop", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Tỷ lệ lỗi theo hop và service, giúp phân biệt lỗi network path với lỗi của service đích.",
+      "fieldConfig": {"defaults": {"min": 0, "max": 1, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13}, "id": 5,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "max by (hop, service) (vid:cross_region_hop_error:ratio5m{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"})", "legendFormat": "{{hop}} / {{service}}", "refId": "A"}],
+      "title": "Error rate theo hop", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Số lỗi terminal theo stage và taxonomy hữu hạn; không chứa số điện thoại, user ID, request ID hoặc trace ID.",
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 21}, "id": 6,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "sum by (stage, reason, service) (rate(cross_region_failures_total{environment=~\"$environment\",cluster=~\"$cluster\",source_region=~\"$source_region\",destination_region=~\"$destination_region\",service=~\"$service\"}[5m]))", "legendFormat": "{{stage}} / {{reason}} / {{service}}", "refId": "A"}],
+      "title": "Failure stage và reason", "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 41,
+  "tags": ["sso", "cross-region", "network"],
+  "templating": {"list": [
+    {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "definition": "label_values(up{job=\"vid-metrics-simulator\"}, environment)", "includeAll": true, "label": "Environment", "name": "environment", "query": {"query": "label_values(up{job=\"vid-metrics-simulator\"}, environment)", "refId": "env"}, "refresh": 1, "type": "query"},
+    {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "definition": "label_values(up{job=\"vid-metrics-simulator\",environment=~\"$environment\"}, cluster)", "includeAll": true, "label": "Cluster", "name": "cluster", "query": {"query": "label_values(up{job=\"vid-metrics-simulator\",environment=~\"$environment\"}, cluster)", "refId": "cluster"}, "refresh": 1, "type": "query"},
+    {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "definition": "label_values(cross_region_requests_total, source_region)", "includeAll": true, "label": "Source region", "name": "source_region", "query": {"query": "label_values(cross_region_requests_total, source_region)", "refId": "source"}, "refresh": 1, "type": "query"},
+    {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "definition": "label_values(cross_region_requests_total{source_region=~\"$source_region\"}, destination_region)", "includeAll": true, "label": "Destination region", "name": "destination_region", "query": {"query": "label_values(cross_region_requests_total{source_region=~\"$source_region\"}, destination_region)", "refId": "destination"}, "refresh": 1, "type": "query"},
+    {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "definition": "label_values(cross_region_requests_total, service)", "includeAll": true, "label": "Service", "name": "service", "query": {"query": "label_values(cross_region_requests_total, service)", "refId": "service"}, "refresh": 1, "type": "query"}
+  ]},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "V-ID SSO — Cross-region Requests",
+  "uid": "sso-cross-region",
+  "version": 1
+}

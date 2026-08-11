@@ -1,0 +1,33 @@
+rule_files:
+  - ../../observability/prometheus/rules/vid-cross-region-rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'cross_region_requests_total{environment="uat",cluster="test",source_region="vn",destination_region="us",service="auth-service",result="success"}'
+        values: '0+95x6'
+      - series: 'cross_region_requests_total{environment="uat",cluster="test",source_region="vn",destination_region="us",service="auth-service",result="failure"}'
+        values: '0+5x6'
+      - series: 'cross_region_requests_total{environment="uat",cluster="test",source_region="vn",destination_region="id",service="auth-service",result="success"}'
+        values: '0+80x6'
+      - series: 'cross_region_requests_total{environment="uat",cluster="test",source_region="vn",destination_region="id",service="auth-service",result="failure"}'
+        values: '0+20x6'
+      - series: 'cross_region_hop_requests_total{environment="uat",cluster="test",source_region="vn",destination_region="us",hop="dc_to_destination",service="auth-service",result="success"}'
+        values: '0+90x6'
+      - series: 'cross_region_hop_requests_total{environment="uat",cluster="test",source_region="vn",destination_region="us",hop="dc_to_destination",service="auth-service",result="failure"}'
+        values: '0+10x6'
+    promql_expr_test:
+      - expr: 'vid:cross_region_success:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:cross_region_success:ratio5m",cluster="test",destination_region="us",environment="uat",service="auth-service",source_region="vn"}'
+            value: 0.95
+          - labels: '{__name__="vid:cross_region_success:ratio5m",cluster="test",destination_region="id",environment="uat",service="auth-service",source_region="vn"}'
+            value: 0.8
+      - expr: 'vid:cross_region_hop_error:ratio5m'
+        eval_time: 5m
+        exp_samples:
+          - labels: '{__name__="vid:cross_region_hop_error:ratio5m",cluster="test",destination_region="us",environment="uat",hop="dc_to_destination",service="auth-service",source_region="vn"}'
+            value: 0.1

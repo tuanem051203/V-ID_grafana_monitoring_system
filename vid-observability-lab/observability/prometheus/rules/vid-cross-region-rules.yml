@@ -1,0 +1,72 @@
+groups:
+  - name: vid-cross-region-recording
+    interval: 30s
+    rules:
+      - record: vid:cross_region_requests:rate5m
+        expr: |
+          sum by (environment, cluster, source_region, destination_region, service) (
+            rate(cross_region_requests_total[5m])
+          )
+      - record: vid:cross_region_success:ratio5m
+        expr: |
+          sum by (environment, cluster, source_region, destination_region, service) (
+            rate(cross_region_requests_total{result="success"}[5m])
+          )
+          /
+          clamp_min(sum by (environment, cluster, source_region, destination_region, service) (
+            rate(cross_region_requests_total[5m])
+          ), 1e-9)
+      - record: vid:cross_region_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (environment, cluster, source_region, destination_region, service, le) (
+              rate(cross_region_request_duration_seconds_bucket[5m])
+            )
+          )
+      - record: vid:cross_region_hop_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (environment, cluster, source_region, destination_region, hop, service, le) (
+              rate(cross_region_hop_duration_seconds_bucket[5m])
+            )
+          )
+      - record: vid:cross_region_hop_error:ratio5m
+        expr: |
+          sum by (environment, cluster, source_region, destination_region, hop, service) (
+            rate(cross_region_hop_requests_total{result="failure"}[5m])
+          )
+          /
+          clamp_min(sum by (environment, cluster, source_region, destination_region, hop, service) (
+            rate(cross_region_hop_requests_total[5m])
+          ), 1e-9)
+
+  - name: vid-cross-region-alerts
+    interval: 30s
+    rules:
+      - alert: VIDCrossRegionSuccessRateLow
+        expr: vid:cross_region_success:ratio5m < 0.95
+        for: 5m
+        labels: {severity: critical, team: vid-sre, service: identity-platform}
+        annotations:
+          summary: "Cross-region request success rate is low"
+          description: "Route {{ $labels.source_region }} to {{ $labels.destination_region }} for {{ $labels.service }} has remained below 95% success for 5 minutes."
+          dashboard_url: "http://localhost:3000/d/sso-cross-region"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/cross-region-request"
+      - alert: VIDCrossRegionLatencyHigh
+        expr: vid:cross_region_latency:p95_5m > 1
+        for: 5m
+        labels: {severity: warning, team: vid-sre, service: identity-platform}
+        annotations:
+          summary: "Cross-region request latency is high"
+          description: "Route {{ $labels.source_region }} to {{ $labels.destination_region }} for {{ $labels.service }} has p95 latency above 1 second."
+          dashboard_url: "http://localhost:3000/d/sso-cross-region"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/cross-region-request"
+      - alert: VIDCrossRegionHopDegraded
+        expr: vid:cross_region_hop_error:ratio5m > 0.05 or vid:cross_region_hop_latency:p95_5m > 0.75
+        for: 5m
+        labels: {severity: warning, team: vid-sre, service: identity-platform}
+        annotations:
+          summary: "Cross-region route hop is degraded"
+          description: "Hop {{ $labels.hop }} on {{ $labels.source_region }} to {{ $labels.destination_region }} is slow or failing for {{ $labels.service }}."
+          dashboard_url: "http://localhost:3000/d/sso-cross-region"
+          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/cross-region-request"

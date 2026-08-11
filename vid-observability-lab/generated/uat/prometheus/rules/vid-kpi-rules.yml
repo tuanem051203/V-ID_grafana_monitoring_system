@@ -1,0 +1,423 @@
+groups:
+  - name: vid-kpi-short-window
+    interval: 30s
+    rules:
+      # KPI-01 uses all authentication requests as the denominator.
+      - record: vid:kpi_authentication_success:ratio5m
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_success_total[5m])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(auth_requests_total[5m])
+            ),
+            1e-9
+          )
+      - record: vid:kpi_authentication_success:ratio1h
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_success_total[1h])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(auth_requests_total[1h])
+            ),
+            1e-9
+          )
+
+      # KPI-02 is the share of authentication requests completed under 500 ms.
+      - record: vid:kpi_authentication_latency_under_500ms:ratio5m
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
+            }[5m])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(auth_request_duration_seconds_count[5m])
+            ),
+            1e-9
+          )
+      - record: vid:kpi_authentication_latency_under_500ms:ratio1h
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
+            }[1h])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(auth_request_duration_seconds_count[1h])
+            ),
+            1e-9
+          )
+
+      # KPI-03 compares successful deliveries with all provider send attempts.
+      - record: vid:kpi_otp_delivery_success:ratio5m
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_delivery_success_total[5m])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(otp_send_total[5m])
+            ),
+            1e-9
+          )
+      - record: vid:kpi_otp_delivery_success:ratio1h
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_delivery_success_total[1h])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(otp_send_total[1h])
+            ),
+            1e-9
+          )
+
+      # KPI-04 is a product baseline. All terminal verification outcomes remain
+      # in the denominator; no SLO/burn-rate alert is attached.
+      - record: vid:kpi_otp_verification_success:ratio5m
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_verify_success_total[5m])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(otp_verify_total[5m])
+            ),
+            1e-9
+          )
+      - record: vid:kpi_otp_verification_success:ratio1h
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_verify_success_total[1h])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(otp_verify_total[1h])
+            ),
+            1e-9
+          )
+
+      # KPI-05 compares issued tokens with all token requests.
+      - record: vid:kpi_token_issuance_success:ratio5m
+        expr: |
+          sum by (environment, cluster) (
+            rate(token_issue_total[5m])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(token_request_total[5m])
+            ),
+            1e-9
+          )
+      - record: vid:kpi_token_issuance_success:ratio1h
+        expr: |
+          sum by (environment, cluster) (
+            rate(token_issue_total[1h])
+          )
+          /
+          clamp_min(
+            sum by (environment, cluster) (
+              rate(token_request_total[1h])
+            ),
+            1e-9
+          )
+
+      # KPI-06 measures critical traffic and treats only 5xx as unavailable.
+      - record: vid:kpi_platform_availability:ratio5m
+        expr: |
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[5m])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[5m])
+            ), 1e-9)
+          )
+      - record: vid:kpi_platform_availability:ratio1h
+        expr: |
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[1h])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[1h])
+            ), 1e-9)
+          )
+
+      - record: vid:eligible_requests:rate5m
+        expr: |
+          sum by (environment, cluster, kpi) (
+            label_replace(
+              rate(auth_requests_total[5m]),
+              "kpi", "authentication", "", ""
+            )
+            or
+            label_replace(
+              rate(otp_send_total[5m]),
+              "kpi", "otp_delivery", "", ""
+            )
+            or
+            label_replace(
+              rate(otp_verify_total[5m]),
+              "kpi", "otp_verification", "", ""
+            )
+            or
+            label_replace(
+              rate(token_request_total[5m]),
+              "kpi", "token_issuance", "", ""
+            )
+            or
+            label_replace(
+              rate(http_requests_total{critical="true"}[5m]),
+              "kpi", "platform", "", ""
+            )
+          )
+
+  - name: vid-kpi-long-window
+    interval: 1m
+    rules:
+      - record: vid:kpi_authentication_success:ratio6h
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_success_total[6h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(auth_requests_total[6h])
+          ), 1e-9)
+      - record: vid:kpi_authentication_success:ratio24h
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_success_total[24h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(auth_requests_total[24h])
+          ), 1e-9)
+      - record: vid:kpi_authentication_success:ratio30d
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_success_total[30d])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(auth_requests_total[30d])
+          ), 1e-9)
+
+      - record: vid:kpi_authentication_latency_under_500ms:ratio6h
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
+            }[6h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_count[6h])
+          ), 1e-9)
+      - record: vid:kpi_authentication_latency_under_500ms:ratio24h
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
+            }[24h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_count[24h])
+          ), 1e-9)
+      - record: vid:kpi_authentication_latency_under_500ms:ratio30d
+        expr: |
+          sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_bucket{
+              le="0.5"
+            }[30d])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(auth_request_duration_seconds_count[30d])
+          ), 1e-9)
+
+      - record: vid:kpi_otp_delivery_success:ratio6h
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_delivery_success_total[6h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(otp_send_total[6h])
+          ), 1e-9)
+      - record: vid:kpi_otp_delivery_success:ratio24h
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_delivery_success_total[24h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(otp_send_total[24h])
+          ), 1e-9)
+      - record: vid:kpi_otp_delivery_success:ratio30d
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_delivery_success_total[30d])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(otp_send_total[30d])
+          ), 1e-9)
+
+      - record: vid:kpi_otp_verification_success:ratio6h
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_verify_success_total[6h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(otp_verify_total[6h])
+          ), 1e-9)
+      - record: vid:kpi_otp_verification_success:ratio24h
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_verify_success_total[24h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(otp_verify_total[24h])
+          ), 1e-9)
+      - record: vid:kpi_otp_verification_success:ratio30d
+        expr: |
+          sum by (environment, cluster) (
+            rate(otp_verify_success_total[30d])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(otp_verify_total[30d])
+          ), 1e-9)
+
+      - record: vid:kpi_token_issuance_success:ratio6h
+        expr: |
+          sum by (environment, cluster) (
+            rate(token_issue_total[6h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(token_request_total[6h])
+          ), 1e-9)
+      - record: vid:kpi_token_issuance_success:ratio24h
+        expr: |
+          sum by (environment, cluster) (
+            rate(token_issue_total[24h])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(token_request_total[24h])
+          ), 1e-9)
+      - record: vid:kpi_token_issuance_success:ratio30d
+        expr: |
+          sum by (environment, cluster) (
+            rate(token_issue_total[30d])
+          )
+          /
+          clamp_min(sum by (environment, cluster) (
+            rate(token_request_total[30d])
+          ), 1e-9)
+
+      - record: vid:kpi_platform_availability:ratio6h
+        expr: |
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[6h])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[6h])
+            ), 1e-9)
+          )
+      - record: vid:kpi_platform_availability:ratio24h
+        expr: |
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[24h])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[24h])
+            ), 1e-9)
+          )
+      - record: vid:kpi_platform_availability:ratio30d
+        expr: |
+          1 - (
+            sum by (environment, cluster) (
+              rate(http_requests_5xx_total{critical="true"}[30d])
+            )
+            /
+            clamp_min(sum by (environment, cluster) (
+              rate(http_requests_total{critical="true"}[30d])
+            ), 1e-9)
+          )
+
+  - name: vid-slo-error-budget
+    interval: 30s
+    rules:
+      # Burn rate = bad-event ratio / allowed bad-event ratio.
+      - record: vid:slo_authentication_success:burnrate5m
+        expr: (1 - vid:kpi_authentication_success:ratio5m) / (1 - 0.999)
+      - record: vid:slo_authentication_success:burnrate1h
+        expr: (1 - vid:kpi_authentication_success:ratio1h) / (1 - 0.999)
+      - record: vid:slo_authentication_success:burnrate6h
+        expr: (1 - vid:kpi_authentication_success:ratio6h) / (1 - 0.999)
+      - record: vid:slo_authentication_success:error_budget_remaining30d
+        expr: clamp_max(clamp_min(1 - ((1 - vid:kpi_authentication_success:ratio30d) / (1 - 0.999)), 0), 1)
+
+      - record: vid:slo_authentication_latency:burnrate5m
+        expr: (1 - vid:kpi_authentication_latency_under_500ms:ratio5m) / (1 - 0.95)
+      - record: vid:slo_authentication_latency:burnrate1h
+        expr: (1 - vid:kpi_authentication_latency_under_500ms:ratio1h) / (1 - 0.95)
+      - record: vid:slo_authentication_latency:burnrate6h
+        expr: (1 - vid:kpi_authentication_latency_under_500ms:ratio6h) / (1 - 0.95)
+      - record: vid:slo_authentication_latency:error_budget_remaining30d
+        expr: clamp_max(clamp_min(1 - ((1 - vid:kpi_authentication_latency_under_500ms:ratio30d) / (1 - 0.95)), 0), 1)
+
+      - record: vid:slo_otp_delivery:burnrate5m
+        expr: (1 - vid:kpi_otp_delivery_success:ratio5m) / (1 - 0.95)
+      - record: vid:slo_otp_delivery:burnrate1h
+        expr: (1 - vid:kpi_otp_delivery_success:ratio1h) / (1 - 0.95)
+      - record: vid:slo_otp_delivery:burnrate6h
+        expr: (1 - vid:kpi_otp_delivery_success:ratio6h) / (1 - 0.95)
+      - record: vid:slo_otp_delivery:error_budget_remaining30d
+        expr: clamp_max(clamp_min(1 - ((1 - vid:kpi_otp_delivery_success:ratio30d) / (1 - 0.95)), 0), 1)
+
+      - record: vid:slo_token_issuance:burnrate5m
+        expr: (1 - vid:kpi_token_issuance_success:ratio5m) / (1 - 0.999)
+      - record: vid:slo_token_issuance:burnrate1h
+        expr: (1 - vid:kpi_token_issuance_success:ratio1h) / (1 - 0.999)
+      - record: vid:slo_token_issuance:burnrate6h
+        expr: (1 - vid:kpi_token_issuance_success:ratio6h) / (1 - 0.999)
+      - record: vid:slo_token_issuance:error_budget_remaining30d
+        expr: clamp_max(clamp_min(1 - ((1 - vid:kpi_token_issuance_success:ratio30d) / (1 - 0.999)), 0), 1)
+
+      - record: vid:slo_platform_availability:burnrate5m
+        expr: (1 - vid:kpi_platform_availability:ratio5m) / (1 - 0.999)
+      - record: vid:slo_platform_availability:burnrate1h
+        expr: (1 - vid:kpi_platform_availability:ratio1h) / (1 - 0.999)
+      - record: vid:slo_platform_availability:burnrate6h
+        expr: (1 - vid:kpi_platform_availability:ratio6h) / (1 - 0.999)
+      - record: vid:slo_platform_availability:error_budget_remaining30d
+        expr: clamp_max(clamp_min(1 - ((1 - vid:kpi_platform_availability:ratio30d) / (1 - 0.999)), 0), 1)

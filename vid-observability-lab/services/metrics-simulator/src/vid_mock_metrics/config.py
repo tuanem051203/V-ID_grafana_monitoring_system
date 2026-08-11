@@ -34,6 +34,33 @@ class EventDefinition:
     database_latency_multiplier: float = 1.0
     database_error_rate: float | None = None
     unavailable_pods: int = 0
+    cross_region_latency_multiplier: float = 1.0
+    cross_region_failure_rate: float | None = None
+    cross_region_affected_hop: str | None = None
+    cross_region_affected_destination: str | None = None
+
+
+@dataclass(frozen=True)
+class CrossRegionHop:
+    name: str
+    latency_p50_seconds: float
+    failure_rate: float
+
+
+@dataclass(frozen=True)
+class CrossRegionDestination:
+    destination_region: str
+    traffic_weight: float
+    hops: tuple[CrossRegionHop, ...]
+
+
+@dataclass(frozen=True)
+class CrossRegionConfig:
+    enabled: bool
+    source_region: str
+    traffic_ratio: float
+    latency_sigma: float
+    destinations: tuple[CrossRegionDestination, ...]
 
 
 @dataclass(frozen=True)
@@ -61,6 +88,7 @@ class Settings:
     traffic_schedule: tuple[TrafficPoint, ...]
     events: tuple[EventDefinition, ...]
     baseline: ServiceBaseline
+    cross_region: CrossRegionConfig
 
 
 def _clock_minute(value: Any) -> int:
@@ -152,6 +180,53 @@ def load_settings() -> Settings:
     if baseline.auth_success_min > baseline.auth_success_max:
         raise ValueError("auth success range is inverted")
 
+    route_values = _mapping(raw.get("cross_region"), "cross_region")
+    destinations = tuple(
+        CrossRegionDestination(
+            destination_region=str(destination["destination_region"]),
+            traffic_weight=float(destination["traffic_weight"]),
+            hops=tuple(
+                CrossRegionHop(
+                    name=str(item["name"]),
+                    latency_p50_seconds=float(item["latency_p50_seconds"]),
+                    failure_rate=_rate(
+                        item["failure_rate"], "cross_region hop failure_rate"
+                    ),
+                )
+                for item in _mapping_list(
+                    destination.get("hops"), "cross_region destination hops"
+                )
+            ),
+        )
+        for destination in _mapping_list(
+            route_values.get("destinations"), "cross_region.destinations"
+        )
+    )
+    route = CrossRegionConfig(
+        enabled=bool(route_values.get("enabled", True)),
+        source_region=str(route_values["source_region"]),
+        traffic_ratio=_rate(route_values["traffic_ratio"], "cross_region.traffic_ratio"),
+        latency_sigma=float(route_values.get("latency_sigma", 0.35)),
+        destinations=destinations,
+    )
+    if not route.destinations:
+        raise ValueError("cross_region must have at least one destination")
+    if any(destination.traffic_weight <= 0 for destination in route.destinations):
+        raise ValueError("cross_region destination traffic weights must be positive")
+    if abs(sum(item.traffic_weight for item in route.destinations) - 1.0) > 1e-9:
+        raise ValueError("cross_region destination traffic weights must sum to 1")
+    if len({item.destination_region for item in route.destinations}) != len(
+        route.destinations
+    ):
+        raise ValueError("cross_region destination regions must be unique")
+    for destination in route.destinations:
+        if not destination.hops or any(
+            hop.latency_p50_seconds <= 0 for hop in destination.hops
+        ):
+            raise ValueError("cross_region destinations need positive-latency hops")
+        if len({hop.name for hop in destination.hops}) != len(destination.hops):
+            raise ValueError("cross_region hop names must be unique per destination")
+
     interval = float(os.getenv("VID_GENERATION_INTERVAL_SECONDS", "5"))
     day_seconds = float(os.getenv("VID_SIMULATION_DAY_SECONDS", "86400"))
     seed = int(os.getenv("VID_RANDOM_SEED", str(raw.get("random_seed", 20250730))))
@@ -169,4 +244,5 @@ def load_settings() -> Settings:
         schedule,
         events,
         baseline,
+        route,
     )

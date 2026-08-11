@@ -60,6 +60,21 @@ RAW_METRIC_LABELS = {
     "otp_queue_size": set(),
     "otp_provider_status": {"provider"},
     "simulation_event_active": {"event"},
+    "cross_region_requests_total": {
+        "source_region", "destination_region", "service", "operation", "result"
+    },
+    "cross_region_failures_total": {
+        "source_region", "destination_region", "service", "stage", "reason"
+    },
+    "cross_region_request_duration_seconds_bucket": {
+        "source_region", "destination_region", "service", "operation", "result", "le"
+    },
+    "cross_region_hop_requests_total": {
+        "source_region", "destination_region", "hop", "service", "result"
+    },
+    "cross_region_hop_duration_seconds_bucket": {
+        "source_region", "destination_region", "hop", "service", "result", "le"
+    },
 }
 
 
@@ -87,6 +102,7 @@ class DashboardContractTest(unittest.TestCase):
             "sso-authorization",
             "sso-platform",
             "sso-reliability",
+            "sso-cross-region",
         }
         actual = {dashboard["uid"] for _, dashboard in self.dashboards()}
         self.assertEqual(actual, expected)

@@ -16,7 +16,9 @@ done
 promtool check config observability/prometheus/prometheus.yml
 promtool check rules observability/prometheus/rules/vid-kpi-rules.yml
 promtool check rules observability/prometheus/rules/vid-alert-rules.yml
+promtool check rules observability/prometheus/rules/vid-cross-region-rules.yml
 promtool test rules tests/prometheus/vid-kpi-rules.test.yml
+promtool test rules tests/prometheus/vid-cross-region-rules.test.yml
 for alertmanager_config in observability/alertmanager/alertmanager.*.yml; do
   alertmanager_config_name=$(basename "$alertmanager_config")
   (cd observability/alertmanager && amtool check-config "$alertmanager_config_name")

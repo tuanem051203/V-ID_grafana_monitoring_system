@@ -35,6 +35,12 @@ Before adding a dimension, estimate the resulting series count, including every
 histogram bucket. Provider, channel, grant type, service, endpoint and client type
 are permitted only while they stay within the agreed cardinality budget.
 
+Cross-region monitoring additionally permits bounded `source_region`,
+`destination_region`, `hop`, `operation`, `stage` and `reason` values. These RED
+metrics are operational indicators, not a seventh approved business KPI. Their
+route topology and alert thresholds require network/service-owner approval; see
+[`CROSS-REGION-MONITORING.md`](CROSS-REGION-MONITORING.md).
+
 ## Counter and retry semantics
 
 - Counters may reset only when a process restarts.
