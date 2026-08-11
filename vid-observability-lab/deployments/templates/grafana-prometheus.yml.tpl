@@ -5,8 +5,8 @@ datasources:
     uid: prometheus
     type: prometheus
     access: proxy
-    url: http://prometheus:9090
+    url: @@GRAFANA_DATASOURCE_URL@@
     isDefault: true
-    editable: true
+    editable: false
     jsonData:
-      timeInterval: 5s
+      timeInterval: @@GRAFANA_DATASOURCE_INTERVAL@@

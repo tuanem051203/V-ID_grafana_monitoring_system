@@ -3,8 +3,20 @@ set -Eeuo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-COMPOSE_FILE="$PROJECT_ROOT/deployments/local/docker-compose.yml"
+python3 "$PROJECT_ROOT/scripts/render-config.py" --environment local >/dev/null
+COMPOSE_FILE="$PROJECT_ROOT/generated/local/docker-compose.yml"
+RESOLVED_CONFIG="$PROJECT_ROOT/generated/local/resolved.json"
 CI_PROJECT_NAME="vid-ci-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+
+config_value() {
+  python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' \
+    "$RESOLVED_CONFIG" "$1"
+}
+
+METRICS_URL=$(config_value public_urls_metrics_simulator)
+PROMETHEUS_URL=$(config_value public_urls_prometheus)
+ALERTMANAGER_URL=$(config_value public_urls_alertmanager)
+GRAFANA_URL=$(config_value public_urls_grafana)
 
 compose() {
   docker compose -p "$CI_PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
@@ -35,17 +47,17 @@ wait_for_url() {
 }
 
 export GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-ci-only-password}
-export VID_LOAD_PROFILE=${VID_LOAD_PROFILE:-development}
-
 compose up --build --detach
 
-wait_for_url "metrics simulator" "http://localhost:8000/health"
-wait_for_url "Prometheus" "http://localhost:9090/-/ready"
-wait_for_url "Alertmanager" "http://localhost:9093/-/ready"
-wait_for_url "Grafana" "http://localhost:3000/api/health" 60
+wait_for_url "metrics simulator" "$METRICS_URL/health"
+wait_for_url "Prometheus" "$PROMETHEUS_URL/-/ready"
+wait_for_url "Alertmanager" "$ALERTMANAGER_URL/-/ready"
+wait_for_url "Grafana" "$GRAFANA_URL/api/health" 60
 
+METRICS_URL="$METRICS_URL" PROMETHEUS_URL="$PROMETHEUS_URL" GRAFANA_URL="$GRAFANA_URL" \
 python3 - <<'PY'
 import json
+import os
 import time
 import urllib.request
 
@@ -55,16 +67,20 @@ def get_json(url: str) -> dict:
         return json.load(response)
 
 
-metrics = urllib.request.urlopen("http://localhost:8000/metrics", timeout=5).read()
+metrics_url = os.environ["METRICS_URL"]
+prometheus_url = os.environ["PROMETHEUS_URL"]
+grafana_url = os.environ["GRAFANA_URL"]
+
+metrics = urllib.request.urlopen(f"{metrics_url}/metrics", timeout=5).read()
 assert b"auth_requests_total" in metrics, "expected V-ID metrics were not exposed"
 
-rules = get_json("http://localhost:9090/api/v1/rules")
+rules = get_json(f"{prometheus_url}/api/v1/rules")
 assert rules["status"] == "success", rules
 assert rules["data"]["groups"], "Prometheus loaded no rule groups"
 
 deadline = time.time() + 30
 while True:
-    targets = get_json("http://localhost:9090/api/v1/targets")
+    targets = get_json(f"{prometheus_url}/api/v1/targets")
     active = targets["data"]["activeTargets"]
     simulator = [
         target
@@ -77,9 +93,8 @@ while True:
         raise AssertionError(f"metrics simulator target is not healthy: {simulator}")
     time.sleep(2)
 
-grafana = get_json("http://localhost:3000/api/health")
+grafana = get_json(f"{grafana_url}/api/health")
 assert grafana["database"] == "ok", grafana
 PY
 
 echo "Integration smoke test passed"
-

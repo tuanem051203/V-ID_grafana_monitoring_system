@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -91,20 +92,29 @@ def _mapping_list(value: object, key: str) -> tuple[dict[str, Any], ...]:
 
 
 def load_settings() -> Settings:
-    import yaml
-
-    default_path = Path(__file__).resolve().parents[2] / "config" / "simulation.yaml"
-    path = Path(os.getenv("VID_SIMULATION_CONFIG", str(default_path)))
+    default_path = Path(__file__).resolve().parents[2] / "config" / "runtime.json"
+    path = Path(os.getenv("CONFIG_FILE", str(default_path)))
     with path.open(encoding="utf-8") as stream:
-        loaded = cast(object, yaml.safe_load(stream))  # pyright: ignore[reportUnknownMemberType]
+        loaded = cast(object, json.load(stream))
     if not isinstance(loaded, dict):
         raise ValueError(f"Invalid simulation configuration: {path}")
     raw = cast(dict[str, Any], loaded)
+    if raw.get("version") != 1:
+        raise ValueError(f"Unsupported configuration version in {path}")
 
-    profile_name = os.getenv("VID_LOAD_PROFILE", str(raw.get("default_profile", "development")))
+    environment = os.getenv("APP_ENV", "local")
+    raw_environments = _mapping(raw.get("environments"), "environments")
+    if environment not in raw_environments:
+        raise ValueError(f"Unknown APP_ENV {environment!r}")
+    environment_config = _mapping(
+        raw_environments[environment], f"environments.{environment}"
+    )
+    profile_name = str(environment_config["load_profile"])
     raw_profiles = _mapping(raw.get("load_profiles"), "load_profiles")
     if profile_name not in raw_profiles:
-        raise ValueError(f"Unknown VID_LOAD_PROFILE {profile_name!r}")
+        raise ValueError(
+            f"Unknown load profile {profile_name!r} for environment {environment!r}"
+        )
     raw_profile = _mapping(raw_profiles[profile_name], f"load_profiles.{profile_name}")
     profile = LoadProfile(profile_name, float(raw_profile["peak_tps"]))
     if profile.peak_tps <= 0:
@@ -152,9 +162,9 @@ def load_settings() -> Settings:
     if baseline.auth_success_min > baseline.auth_success_max:
         raise ValueError("auth success range is inverted")
 
-    interval = float(os.getenv("VID_GENERATION_INTERVAL_SECONDS", "5"))
-    day_seconds = float(os.getenv("VID_SIMULATION_DAY_SECONDS", "86400"))
-    seed = int(os.getenv("VID_RANDOM_SEED", str(raw.get("random_seed", 20250730))))
+    interval = float(environment_config["generation_interval_seconds"])
+    day_seconds = float(environment_config["simulation_day_seconds"])
+    seed = int(environment_config["random_seed"])
     noise_ratio = float(raw.get("noise_ratio", 0.05))
     if interval <= 0 or day_seconds <= 0:
         raise ValueError("generation interval and simulation day must be positive")

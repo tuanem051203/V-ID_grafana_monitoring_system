@@ -1,0 +1,105 @@
+{
+  "$schema": "./config.schema.json",
+  "version": 1,
+  "defaults": {
+    "images": {
+      "prometheus": "prom/prometheus:v3.5.0",
+      "alertmanager": "prom/alertmanager:v0.28.1",
+      "grafana": "grafana/grafana:12.1.0"
+    },
+    "ports": {
+      "metrics_simulator": 8000,
+      "prometheus": 9090,
+      "alertmanager": 9093,
+      "grafana": 3000
+    },
+    "targets": {
+      "metrics_simulator": "metrics-simulator:8000",
+      "prometheus": "prometheus:9090",
+      "alertmanager": "alertmanager:9093"
+    },
+    "prometheus": {
+      "scrape_interval": "5s",
+      "evaluation_interval": "5s"
+    },
+    "grafana": {
+      "admin_user": "admin",
+      "datasource_url": "http://prometheus:9090",
+      "datasource_interval": "5s"
+    },
+    "alertmanager": {
+      "resolve_timeout": "5m",
+      "group_by": ["alertname", "environment", "cluster", "service"],
+      "smtp_password_file": "/run/secrets/smtp_password",
+      "smtp_require_tls": true
+    }
+  },
+  "environments": {
+    "local": {
+      "project_name": "vid-observability-lab",
+      "cluster": "docker-compose",
+      "public_urls": {
+        "metrics_simulator": "http://localhost:8000",
+        "prometheus": "http://localhost:9090",
+        "alertmanager": "http://localhost:9093",
+        "grafana": "http://localhost:3000",
+        "runbooks": "http://localhost:3000/runbooks"
+      },
+      "alertmanager": {
+        "smtp_smarthost": "smtp.gmail.com:587",
+        "smtp_from": "tuanem051203@gmail.com",
+        "smtp_username": "tuanem051203@gmail.com",
+        "warning_recipients": "tuanem051201@gmail.com",
+        "critical_recipients": "tuanem051201@gmail.com",
+        "group_wait": "10s",
+        "group_interval": "5m",
+        "repeat_interval": "4h",
+        "critical_repeat_interval": "1h"
+      }
+    },
+    "uat": {
+      "project_name": "vid-observability-uat",
+      "cluster": "vid-uat",
+      "public_urls": {
+        "metrics_simulator": "https://metrics-uat.example.com",
+        "prometheus": "https://prometheus-uat.example.com",
+        "alertmanager": "https://alertmanager-uat.example.com",
+        "grafana": "https://grafana-uat.example.com",
+        "runbooks": "https://docs-uat.example.com/runbooks"
+      },
+      "alertmanager": {
+        "smtp_smarthost": "smtp.uat.example.com:587",
+        "smtp_from": "vid-alerts-uat@example.com",
+        "smtp_username": "vid-alerts-uat@example.com",
+        "warning_recipients": "vid-sre-uat@example.com",
+        "critical_recipients": "vid-sre-uat@example.com",
+        "group_wait": "30s",
+        "group_interval": "10m",
+        "repeat_interval": "8h",
+        "critical_repeat_interval": "2h"
+      }
+    },
+    "production": {
+      "project_name": "vid-observability-production",
+      "cluster": "vid-production",
+      "public_urls": {
+        "metrics_simulator": "https://metrics.example.com",
+        "prometheus": "https://prometheus.example.com",
+        "alertmanager": "https://alertmanager.example.com",
+        "grafana": "https://grafana.example.com",
+        "runbooks": "https://docs.example.com/runbooks"
+      },
+      "alertmanager": {
+        "smtp_smarthost": "smtp.example.com:587",
+        "smtp_from": "vid-alerts@example.com",
+        "smtp_username": "vid-alerts@example.com",
+        "warning_recipients": "vid-sre@example.com",
+        "critical_recipients": "vid-sre@example.com,vid-oncall@example.com",
+        "group_wait": "30s",
+        "group_interval": "5m",
+        "repeat_interval": "4h",
+        "critical_repeat_interval": "1h"
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "defaults", "environments"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "defaults": {"type": "object"},
+    "environments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["project_name", "cluster", "public_urls", "alertmanager"],
+        "properties": {
+          "project_name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]+$"},
+          "cluster": {"type": "string", "minLength": 1},
+          "public_urls": {
+            "type": "object",
+            "required": ["metrics_simulator", "prometheus", "alertmanager", "grafana", "runbooks"],
+            "additionalProperties": {"type": "string", "format": "uri"}
+          },
+          "alertmanager": {"type": "object"}
+        }
+      }
+    }
+  }
+}

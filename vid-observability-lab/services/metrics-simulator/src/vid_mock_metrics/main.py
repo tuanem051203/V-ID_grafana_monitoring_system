@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager, suppress
 from typing import AsyncIterator
 
@@ -13,8 +14,13 @@ from vid_mock_metrics.config import load_settings
 from vid_mock_metrics.generator import MetricsGenerator
 from vid_mock_metrics.metrics import REGISTRY
 
+log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+log_level = getattr(logging, log_level_name, None)
+if not isinstance(log_level, int):
+    raise ValueError(f"Invalid LOG_LEVEL {log_level_name!r}")
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 

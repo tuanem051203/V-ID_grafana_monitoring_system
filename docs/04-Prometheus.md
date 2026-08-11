@@ -83,10 +83,12 @@ groups:
         annotations:
           summary: V-ID authentication success rate is low
           description: Authentication success rate has been below 99% for 10 minutes.
-          runbook_url: https://REPLACE-WITH-RUNBOOK
+          runbook_url: https://<runbook-host>/authentication-success
 ```
 
-Ngưỡng ví dụ không được áp dụng trước khi owner phê duyệt.
+Trong implementation, URL này phải được render từ deployment configuration;
+không ghi host trực tiếp trong alert rule. Ngưỡng ví dụ không được áp dụng trước
+khi owner phê duyệt.
 
 ## 4. SLO burn-rate rule
 

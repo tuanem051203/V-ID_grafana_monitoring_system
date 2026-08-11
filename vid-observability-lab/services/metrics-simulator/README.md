@@ -19,23 +19,26 @@ KPI từ counter và histogram thô.
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-VID_LOAD_PROFILE=development \
-  PYTHONPATH=src \
-  uvicorn vid_mock_metrics.main:app --host 0.0.0.0 --port 8000
+APP_ENV=local \
+CONFIG_FILE=config/runtime.json \
+LOG_LEVEL=INFO \
+PYTHONPATH=src \
+uvicorn vid_mock_metrics.main:app --host 0.0.0.0 --port 8000
 ```
 
-`config/simulation.yaml` định nghĩa bốn profile:
+`config/runtime.json` là nguồn cấu hình có cấu trúc và định nghĩa bốn môi trường:
 
-| `VID_LOAD_PROFILE` | Peak TPS |
-|---|---:|
-| `development` | 20 |
-| `uat` | 100 |
-| `production` | 500 |
-| `peak` | 2000 |
+| `APP_ENV` | Load profile | Peak TPS | Simulation day |
+|---|---|---:|---:|
+| `local` | `development` | 20 | 86400 giây |
+| `uat` | `uat` | 100 | 86400 giây |
+| `production` | `production` | 500 | 86400 giây |
+| `peak` | `peak` | 2000 | 3600 giây |
 
-`VID_SIMULATION_DAY_SECONDS` mặc định là `86400`, tương ứng thời gian thực. Có
-thể đặt `3600` để chạy trọn lịch 24 giờ trong một giờ demo. Random có seed ổn
-định; đổi `VID_RANDOM_SEED` khi cần một lần chạy khác nhưng vẫn tái lập được.
+Env chỉ dùng để bootstrap: `APP_ENV` chọn môi trường, `CONFIG_FILE` trỏ tới JSON
+được mount và `LOG_LEVEL` điều khiển log. Profile, thời gian mô phỏng, random
+seed, traffic, baseline và incident đều được quản lý trong JSON. Schema tại
+`config/runtime.schema.json` hỗ trợ editor và CI phát hiện cấu hình sai.
 
 API `/api/simulation` trả profile, thời gian mô phỏng, TPS hiện tại và event đang
 hoạt động. `/metrics` chỉ chứa raw metrics và các gauge trạng thái simulator.

@@ -681,8 +681,8 @@
       {
         "allValue": ".*",
         "current": {
-          "text": "local",
-          "value": "local"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "prometheus",
@@ -704,8 +704,8 @@
       {
         "allValue": ".*",
         "current": {
-          "text": "docker-compose",
-          "value": "docker-compose"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "prometheus",

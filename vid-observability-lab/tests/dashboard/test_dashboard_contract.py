@@ -133,6 +133,15 @@ class DashboardContractTest(unittest.TestCase):
                         f"{path.name}: {panel['title']}",
                     )
 
+    def test_environment_filters_do_not_default_to_local_cluster(self) -> None:
+        for path, dashboard in self.dashboards():
+            variables = {
+                variable["name"]: variable
+                for variable in dashboard["templating"]["list"]
+            }
+            for name in ("environment", "cluster"):
+                self.assertEqual(variables[name]["current"]["value"], "$__all", path.name)
+
 
 if __name__ == "__main__":
     unittest.main()

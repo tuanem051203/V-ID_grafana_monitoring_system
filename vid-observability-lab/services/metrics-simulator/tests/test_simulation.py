@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import statistics
 import unittest
+from unittest.mock import patch
 
 from vid_mock_metrics.config import (
     EventDefinition,
@@ -9,10 +10,36 @@ from vid_mock_metrics.config import (
     ServiceBaseline,
     Settings,
     TrafficPoint,
+    load_settings,
 )
 from vid_mock_metrics.events import EventScheduler
 from vid_mock_metrics.random_utils import RandomModel
 from vid_mock_metrics.traffic import TrafficGenerator
+
+
+class ConfigurationTest(unittest.TestCase):
+    def test_local_environment_uses_development_profile(self) -> None:
+        with patch.dict("os.environ", {"APP_ENV": "local"}, clear=False):
+            settings = load_settings()
+
+        self.assertEqual(settings.load_profile.name, "development")
+        self.assertEqual(settings.load_profile.peak_tps, 20)
+        self.assertEqual(settings.simulation_day_seconds, 86400)
+
+    def test_environment_selects_structured_json_configuration(self) -> None:
+        with patch.dict("os.environ", {"APP_ENV": "peak"}, clear=False):
+            settings = load_settings()
+
+        self.assertEqual(settings.load_profile.name, "peak")
+        self.assertEqual(settings.load_profile.peak_tps, 2000)
+        self.assertEqual(settings.simulation_day_seconds, 3600)
+
+    def test_unknown_environment_fails_fast(self) -> None:
+        with (
+            patch.dict("os.environ", {"APP_ENV": "does-not-exist"}, clear=False),
+            self.assertRaisesRegex(ValueError, "Unknown APP_ENV"),
+        ):
+            load_settings()
 
 
 class TrafficGeneratorTest(unittest.TestCase):
