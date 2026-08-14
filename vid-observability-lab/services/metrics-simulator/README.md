@@ -1,5 +1,10 @@
 # V-ID Production-like Metrics Simulator
 
+Simulator dùng synthetic aliases để phát triển dashboard trước khi có telemetry
+UAT. `auth-service`, `otp-service` và `token-service` không phải inventory V-ID;
+mapping thật gồm `identity-provider`, Hydra/`oauth2-server`, `oauth2-token`,
+`authz`, `organization`, Kong và dependencies theo `docs/v-id-intern-docs`.
+
 FastAPI service phát raw Prometheus metrics mô phỏng Identity Platform quy mô
 doanh nghiệp. KPI không được export trực tiếp; Prometheus recording rules tính
 KPI từ counter và histogram thô.

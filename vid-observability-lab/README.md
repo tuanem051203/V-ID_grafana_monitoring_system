@@ -11,17 +11,17 @@ metrics V-ID thật chưa sẵn sàng.
 ## Kiến trúc
 
 ```text
-Metrics generator (5 giây) -> FastAPI /metrics    <- Prometheus <- Grafana
-                              /health                |
-                              /api/simulation        +--> Recording/alert rules
-                                                         |
-                                                         v
-                                                    Alertmanager
+Metrics Simulator ── /metrics ──> Prometheus ──> rules ──> Alertmanager
+       │                              │
+       └─ sampled OTLP traces ─> OTel Collector ─> Tempo
+                                      │
+Prometheus + Tempo ───────────────────┴──────────> Grafana
 ```
 
-Service không dùng database, Kafka hay OpenTelemetry. Counter chỉ tăng trong vòng
-đời process. Traffic thay đổi mượt theo giờ, latency dùng phân phối log-normal và
-incident tự kích hoạt rồi phục hồi mà không reset Counter.
+Service không dùng database hay Kafka thật. Counter chỉ tăng trong vòng đời
+process; traffic/latency/incident đều synthetic. Simulator có OpenTelemetry để
+phát sampled OTP traces, nhưng đây không phải context được truyền qua nhiều
+process thật.
 
 ## Cấu trúc repository
 
@@ -104,6 +104,7 @@ Các URL:
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000
 - Alertmanager: http://localhost:9093
+- Tempo API: http://localhost:3200
 
 Prometheus datasource và các dashboard được provision tự động:
 
@@ -115,14 +116,26 @@ Prometheus datasource và các dashboard được provision tự động:
   connection và error.
 - **V-ID — SLO & Operations**: telemetry health, eligible traffic, error budget,
   burn rate và active alerts.
-- **V-ID SSO — Cross-region Requests**: country overview và RED metrics theo
-  từng hop cho authentication, OTP và token request từ Việt Nam đến Mỹ, Đan
-  Mạch, Indonesia, Philippines, Lào, Ấn Độ, Kazakhstan, Nga và Hà Lan.
+- **V-ID SSO — Cross-region Requests**: generic synthetic RED scenario để kiểm
+  thử drill-down theo hop; không đại diện topology production của V-ID.
+- **V-ID SSO — OTP Journey**: end-to-end OTP, p95 theo từng stage, provider
+  delivery receipt và drill-down từ Prometheus exemplar sang synthetic trace
+  waterfall trong Tempo.
 
-Cross-region simulator phát 10% platform traffic qua các route VN -> DC -> quốc
-gia đích và có kịch bản suy giảm riêng cho route Indonesia. Chi tiết metric,
-giới hạn dữ liệu và lộ trình
+Cross-region simulator phát 10% platform traffic qua route giả lập và có kịch bản
+suy giảm riêng. Destination country không chứng minh V-ID có datacenter hoặc
+request thực sự đi qua quốc gia đó. Chi tiết metric, giới hạn dữ liệu và lộ trình
 instrumentation thật nằm tại [`docs/CROSS-REGION-MONITORING.md`](docs/CROSS-REGION-MONITORING.md).
+
+OTP journey simulator mô hình hóa luồng edge → Kong → IdP → Redis → routing →
+queue → GSM → carrier. OpenTelemetry Collector và Tempo được khởi động cùng
+stack; 10% journey được sample thành synthetic trace. Hướng dẫn demo và giới hạn
+dữ liệu nằm tại [`docs/OTP-JOURNEY-MONITORING.md`](docs/OTP-JOURNEY-MONITORING.md).
+
+Mapping production lấy từ `../docs/v-id-intern-docs`: IdP sở hữu OTP; browser
+OIDC đi qua Hydra; `oauth2-token` đang chuyển thành Hydra front; `authz` thực hiện
+RBAC và `organization` là organization source of truth. Các service name ngắn
+trong simulator là synthetic aliases, không phải inventory production.
 
 Datasource dùng UID ổn định `prometheus`; URL nội bộ được lấy từ
 `deployments/config.json`. Dashboard mặc định chọn `All` cho `environment` và

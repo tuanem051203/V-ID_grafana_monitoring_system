@@ -1,95 +1,36 @@
-# 08 — GitOps cho Dashboard và Rules
+# 08 — GitOps cho V-ID observability
 
-## 1. Mục tiêu
+`docs/v-id-intern-docs` là architecture input; source code, rules, dashboards và
+deployment templates trong `vid-observability-lab` là executable artifacts. Một
+thay đổi topology/flow phải cập nhật cả contract, simulator, query, test và docs.
 
-Dashboard, recording rules và alert rules phải được quản lý như code: có lịch sử, review, validation và triển khai lặp lại được.
-
-## 2. Cấu trúc đề xuất
-
-```text
-grafana/
-  dashboards/
-    vid-kpis.json
-prometheus/
-  rules/
-    vid-kpi-recording-rules.yaml
-    vid-kpi-alerts.yaml
-  tests/
-    vid-kpi-rules.test.yaml
-docs/
-  ...
-scripts/
-  validate.ps1
-```
-
-Nếu observability repository có convention khác, ưu tiên convention hiện hành.
-
-## 3. Workflow
+## Source of truth
 
 ```text
-Feature branch
-    |
-    v
-Edit dashboard/rules/docs
-    |
-    v
-Local validation
-    |
-    v
-Merge Request + Review
-    |
-    v
-CI validation
-    |
-    v
-Merge
-    |
-    v
-UAT confirmation
+docs/v-id-intern-docs/                  V-ID architecture snapshot
+vid-observability-lab/services/         synthetic simulator
+vid-observability-lab/observability/    dashboard/rules/Alertmanager
+vid-observability-lab/deployments/      environment templates
+vid-observability-lab/tests/            contract/rule tests
+vid-observability-lab/docs/             operational docs
 ```
 
-## 4. Pull/Merge Request checklist
+Không chỉnh trực tiếp generated config hoặc Grafana dùng chung mà không đồng bộ
+về source. `generated/<environment>` được tạo lại bởi `render-config.py`.
 
-- Mục tiêu và phạm vi thay đổi.
-- KPI/SLO liên quan.
-- Screenshot hoặc dashboard evidence.
-- Kết quả `promtool` và test.
-- Query/cardinality impact.
-- Security/PII review.
-- Kế hoạch xác nhận UAT.
-- Kế hoạch rollback.
-- Owner và runbook.
+## Review checklist
 
-## 5. CI gates
+- Mapping tới component/flow nào trong `v-id-intern-docs`?
+- Đây là current state, transition hay ADR target?
+- Synthetic assumption đã được đánh dấu chưa?
+- Metric labels có PII/high cardinality không?
+- Numerator/denominator, issuer và delivery boundary có nhất quán không?
+- Prometheus rules/dashboard/Compose/OTel config và tests đã đồng bộ chưa?
+- Có UAT evidence, owner, runbook và rollback không?
 
-- YAML/JSON syntax.
-- `promtool check rules`.
-- `promtool test rules`.
-- Grafana dashboard schema/lint nếu tooling hỗ trợ.
-- Tìm secret.
-- Kiểm tra placeholder bị cấm trong artifact triển khai.
-- Kiểm tra file generated có đồng bộ với source.
+## CI và rollback
 
-## 6. Dashboard workflow
-
-Một trong hai mô hình phải được chốt:
-
-1. JSON trong Git là source of truth; Grafana được provision từ Git.
-2. Dashboard được chỉnh trong môi trường tích hợp, export JSON chuẩn hóa rồi review trong Git.
-
-Không chỉnh trực tiếp trên môi trường dùng chung mà không đồng bộ ngược về Git.
-
-## 7. Versioning và rollback
-
-- Commit nhỏ, có mục đích rõ.
-- Dashboard UID ổn định.
-- Rule name không đổi tùy tiện vì ảnh hưởng series/alert history.
-- Rollback bằng revert commit hoặc deploy phiên bản artifact trước đó.
-- Mọi hotfix trên môi trường dùng chung phải được backport vào Git.
-
-## 8. Phân quyền
-
-- Developer: tạo branch/MR.
-- Reviewer/SRE: kiểm tra query, alert và vận hành.
-- Owner: phê duyệt KPI/SLO.
-- Deployment automation/service account: quyền tối thiểu cần thiết.
+CI kiểm tra Python, JSON/YAML, dashboard contract, `promtool`, Alertmanager config,
+rendered Compose, dependency/container scan và smoke test. Giữ UID/rule name ổn
+định. Rollback bằng revert hoặc artifact version trước; không sửa history hay xóa
+thay đổi của người khác.

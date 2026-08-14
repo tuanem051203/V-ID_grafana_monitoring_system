@@ -20,6 +20,13 @@ RAW_METRIC_LABELS = {
     "otp_verify_total": {"channel"},
     "otp_verify_success_total": {"channel"},
     "otp_verify_failed_total": {"channel", "reason"},
+    "otp_journey_requests_total": {"source_region", "destination_country", "channel", "provider", "result"},
+    "otp_journey_duration_seconds_bucket": {"source_region", "destination_country", "channel", "provider", "result", "le"},
+    "otp_journey_failures_total": {"destination_country", "channel", "provider", "stage", "service", "reason"},
+    "otp_stage_requests_total": {"destination_country", "channel", "provider", "stage", "service", "result"},
+    "otp_stage_duration_seconds_bucket": {"destination_country", "channel", "provider", "stage", "service", "result", "le"},
+    "otp_delivery_duration_seconds_bucket": {"destination_country", "channel", "provider", "result", "le"},
+    "otp_queue_wait_duration_seconds_bucket": {"provider", "result", "le"},
     "token_request_total": {"token_type", "grant_type"},
     "token_issue_total": {"token_type", "grant_type"},
     "token_failed_total": {"token_type", "grant_type", "reason"},
@@ -103,6 +110,7 @@ class DashboardContractTest(unittest.TestCase):
             "sso-platform",
             "sso-reliability",
             "sso-cross-region",
+            "sso-otp-journey",
         }
         actual = {dashboard["uid"] for _, dashboard in self.dashboards()}
         self.assertEqual(actual, expected)

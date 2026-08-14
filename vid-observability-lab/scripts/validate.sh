@@ -29,6 +29,7 @@ promtool check rules observability/prometheus/rules/vid-cross-region-rules.yml
 for environment in $ENVIRONMENTS; do
   promtool check config "generated/$environment/prometheus/prometheus.yml"
   promtool check rules "generated/$environment/prometheus/rules/vid-alert-rules.yml"
+  promtool check rules "generated/$environment/prometheus/rules/vid-otp-journey-rules.yml"
   (
     cd "generated/$environment/alertmanager"
     amtool check-config alertmanager.yml
@@ -36,6 +37,7 @@ for environment in $ENVIRONMENTS; do
 done
 promtool test rules tests/prometheus/vid-kpi-rules.test.yml
 promtool test rules tests/prometheus/vid-cross-region-rules.test.yml
+promtool test rules tests/prometheus/vid-otp-journey-rules.test.yml
 GRAFANA_ADMIN_PASSWORD=validation-only \
 VID_SMTP_APP_PASSWORD=validation-only \
   docker compose -f generated/local/docker-compose.yml config --quiet

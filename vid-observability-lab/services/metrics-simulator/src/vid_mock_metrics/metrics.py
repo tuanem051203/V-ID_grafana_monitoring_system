@@ -67,6 +67,61 @@ OTP_VERIFY_FAILED = Counter(
     registry=REGISTRY,
 )
 
+# OTP journey metrics model the complete request and the asynchronous carrier
+# delivery boundary. Identifiers belong in trace exemplars, never labels.
+OTP_JOURNEY_REQUESTS = Counter(
+    "otp_journey_requests",
+    "End-to-end international OTP journeys.",
+    ["source_region", "destination_country", "channel", "provider", "result"],
+    registry=REGISTRY,
+)
+OTP_JOURNEY_DURATION = Histogram(
+    "otp_journey_duration_seconds",
+    "End-to-end international OTP journey duration in seconds.",
+    ["source_region", "destination_country", "channel", "provider", "result"],
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 20, 30),
+    registry=REGISTRY,
+)
+OTP_STAGE_REQUESTS = Counter(
+    "otp_stage_requests",
+    "Requests reaching each bounded OTP journey stage.",
+    ["destination_country", "channel", "provider", "stage", "service", "result"],
+    registry=REGISTRY,
+)
+OTP_STAGE_DURATION = Histogram(
+    "otp_stage_duration_seconds",
+    "Duration of each bounded OTP journey stage.",
+    ["destination_country", "channel", "provider", "stage", "service", "result"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 20),
+    registry=REGISTRY,
+)
+OTP_JOURNEY_FAILURES = Counter(
+    "otp_journey_failures",
+    "Terminal OTP journey failures by bounded stage and reason.",
+    ["destination_country", "channel", "provider", "stage", "service", "reason"],
+    registry=REGISTRY,
+)
+OTP_DELIVERY_REPORTS = Counter(
+    "otp_delivery_reports",
+    "Authoritative provider delivery reports.",
+    ["destination_country", "channel", "provider", "result"],
+    registry=REGISTRY,
+)
+OTP_DELIVERY_DURATION = Histogram(
+    "otp_delivery_duration_seconds",
+    "Time from provider submission to delivery report.",
+    ["destination_country", "channel", "provider", "result"],
+    buckets=(0.25, 0.5, 1, 2, 3, 5, 8, 13, 20, 30, 60),
+    registry=REGISTRY,
+)
+OTP_QUEUE_WAIT_DURATION = Histogram(
+    "otp_queue_wait_duration_seconds",
+    "Time spent waiting in the OTP delivery queue.",
+    ["provider", "result"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10),
+    registry=REGISTRY,
+)
+
 # Token raw metrics
 TOKEN_REQUEST = Counter(
     "token_request",

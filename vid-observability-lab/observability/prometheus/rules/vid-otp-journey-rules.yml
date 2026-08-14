@@ -1,0 +1,50 @@
+groups:
+  - name: vid-otp-journey-recording
+    interval: 30s
+    rules:
+      - record: vid:otp_journey_requests:rate5m
+        expr: sum by (environment, cluster, destination_country, channel, provider) (rate(otp_journey_requests_total[5m]))
+      - record: vid:otp_journey_success:ratio5m
+        expr: |
+          sum by (environment, cluster, destination_country, channel, provider) (rate(otp_journey_requests_total{result="success"}[5m]))
+          / clamp_min(sum by (environment, cluster, destination_country, channel, provider) (rate(otp_journey_requests_total[5m])), 1e-9)
+      - record: vid:otp_journey_latency:p95_5m
+        expr: histogram_quantile(0.95, sum by (environment, cluster, destination_country, channel, provider, le) (rate(otp_journey_duration_seconds_bucket[5m])))
+      - record: vid:otp_stage_latency:p95_5m
+        expr: histogram_quantile(0.95, sum by (environment, cluster, destination_country, channel, provider, stage, service, le) (rate(otp_stage_duration_seconds_bucket[5m])))
+      - record: vid:otp_stage_error:ratio5m
+        expr: |
+          sum by (environment, cluster, destination_country, channel, provider, stage, service) (rate(otp_stage_requests_total{result="failure"}[5m]))
+          / clamp_min(sum by (environment, cluster, destination_country, channel, provider, stage, service) (rate(otp_stage_requests_total[5m])), 1e-9)
+      - record: vid:otp_delivery_latency:p95_5m
+        expr: histogram_quantile(0.95, sum by (environment, cluster, destination_country, channel, provider, le) (rate(otp_delivery_duration_seconds_bucket[5m])))
+  - name: vid-otp-journey-alerts
+    interval: 30s
+    rules:
+      - alert: VIDOTPJourneyLatencyHigh
+        expr: vid:otp_journey_latency:p95_5m > 8
+        for: 5m
+        labels: {severity: warning, team: vid-sre, service: identity-provider}
+        annotations:
+          summary: "International OTP journey latency is high"
+          description: "OTP p95 to {{ $labels.destination_country }} via {{ $labels.provider }} exceeds 8 seconds."
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-otp-journey"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-journey"
+      - alert: VIDOTPStageDegraded
+        expr: vid:otp_stage_error:ratio5m > 0.05 or vid:otp_stage_latency:p95_5m > 5
+        for: 5m
+        labels: {severity: warning, team: vid-sre, service: identity-provider}
+        annotations:
+          summary: "An OTP journey stage is degraded"
+          description: "Stage {{ $labels.stage }} in {{ $labels.service }} is slow or failing for {{ $labels.destination_country }}."
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-otp-journey"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-journey"
+      - alert: VIDOTPDeliveryReceiptMissing
+        expr: sum by (environment, cluster, destination_country, provider) (rate(otp_delivery_reports_total[10m])) == 0 and sum by (environment, cluster, destination_country, provider) (rate(otp_journey_requests_total[10m])) > 0
+        for: 10m
+        labels: {severity: critical, team: vid-sre, service: sms-provider}
+        annotations:
+          summary: "OTP delivery receipts are missing"
+          description: "No delivery reports received for {{ $labels.destination_country }} via {{ $labels.provider }} while journeys continue."
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-otp-journey"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-journey"

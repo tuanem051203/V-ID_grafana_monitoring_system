@@ -30,10 +30,18 @@ from vid_mock_metrics.metrics import (
     INFRASTRUCTURE_CPU_USAGE,
     INFRASTRUCTURE_MEMORY_USAGE,
     OTP_DELIVERY_FAILED,
+    OTP_DELIVERY_DURATION,
+    OTP_DELIVERY_REPORTS,
     OTP_DELIVERY_SUCCESS,
+    OTP_JOURNEY_DURATION,
+    OTP_JOURNEY_FAILURES,
+    OTP_JOURNEY_REQUESTS,
     OTP_PROVIDER_STATUS,
     OTP_QUEUE_SIZE,
+    OTP_QUEUE_WAIT_DURATION,
     OTP_SEND,
+    OTP_STAGE_DURATION,
+    OTP_STAGE_REQUESTS,
     OTP_VERIFY,
     OTP_VERIFY_FAILED,
     OTP_VERIFY_SUCCESS,
@@ -46,6 +54,7 @@ from vid_mock_metrics.metrics import (
     TOKEN_ISSUE,
     TOKEN_REQUEST,
 )
+from vid_mock_metrics.tracing import emit_otp_trace
 from vid_mock_metrics.random_utils import RandomModel
 from vid_mock_metrics.traffic import TrafficGenerator
 
@@ -58,6 +67,15 @@ ROUTES = (
     ("token-service", "/token", 0.25),
     ("token-service", "/token/refresh", 0.13),
 )
+OTP_JOURNEY_STAGES = {
+    "edge_to_kong",
+    "kong_to_idp",
+    "redis_challenge",
+    "route_selection",
+    "queue_wait",
+    "gsm_submit",
+    "carrier_delivery",
+}
 
 
 @dataclass(frozen=True)
@@ -89,7 +107,7 @@ class MetricsGenerator:
         self._manual_otp_queue_size = 0
         self._manual_cross_region_deadline = 0.0
         self._manual_cross_region_destination = "id"
-        self._manual_cross_region_hop = "dc_to_destination"
+        self._manual_cross_region_hop = "carrier_delivery"
         self._manual_cross_region_latency_multiplier = 1.0
         self._manual_cross_region_failure_rate = 0.0
         self._snapshot = SimulationSnapshot(
@@ -144,6 +162,7 @@ class MetricsGenerator:
         if destination_region not in destinations:
             raise ValueError(f"Unknown cross-region destination {destination_region!r}")
         allowed_hops = {item.name for item in destinations[destination_region].hops}
+        allowed_hops.update(OTP_JOURNEY_STAGES)
         if hop not in allowed_hops:
             raise ValueError(f"Unknown cross-region hop {hop!r}")
         self._manual_cross_region_deadline = time.monotonic() + duration_seconds
@@ -200,6 +219,7 @@ class MetricsGenerator:
 
         self._generate_authentication(count, tps, effects)
         self._generate_otp(count, effects)
+        self._generate_otp_journeys(count, effects)
         self._generate_token(count, effects)
         self._generate_platform(count, tps, effects)
         self._generate_supporting_metrics(count, tps, effects, manual_warning_active)
@@ -276,18 +296,16 @@ class MetricsGenerator:
         providers = ("viettel", "vnpt", "mock")
         send_providers = self._random.split(send_count, (0.45, 0.40, 0.15))
         delivered = 0
-        failed = 0
         for provider, sent in zip(providers, send_providers):
             success, provider_failed = self._random.split(sent, (delivery_rate, 1 - delivery_rate))
             OTP_SEND.labels(provider, "sms").inc(sent)
             OTP_DELIVERY_SUCCESS.labels(provider, "sms").inc(success)
             delivered += success
-            failed += provider_failed
-        failed_reasons = self._random.split(failed, (0.60, 0.25, 0.15))
-        for reason, value in zip(
-            ("provider_error", "timeout", "invalid_destination"), failed_reasons
-        ):
-            OTP_DELIVERY_FAILED.labels("viettel", "sms", reason).inc(value)
+            failed_reasons = self._random.split(provider_failed, (0.60, 0.25, 0.15))
+            for reason, value in zip(
+                ("provider_error", "timeout", "invalid_destination"), failed_reasons
+            ):
+                OTP_DELIVERY_FAILED.labels(provider, "sms", reason).inc(value)
 
         verify_count = self._random.event_count(delivered * 0.92)
         verify_rate = self._random.bounded_rate(
@@ -303,6 +321,88 @@ class MetricsGenerator:
             self._random.split(verify_failed, (0.65, 0.25, 0.10)),
         ):
             OTP_VERIFY_FAILED.labels("sms", reason).inc(value)
+
+    def _generate_otp_journeys(self, auth_count: int, effects: EventEffects) -> None:
+        """Generate correlated stage metrics and sampled synthetic traces."""
+        total = self._random.event_count(auth_count * 0.10)
+        countries = ("us", "dk", "id", "ph", "la", "in", "kz", "ru", "nl")
+        weights = (0.20, 0.06, 0.18, 0.15, 0.10, 0.15, 0.05, 0.06, 0.05)
+        stages = (
+            ("edge_to_kong", "kong", 0.018, 0.001),
+            ("kong_to_idp", "identity-provider", 0.035, 0.001),
+            ("redis_challenge", "redis", 0.008, 0.001),
+            ("route_selection", "identity-provider", 0.003, 0.0005),
+            ("queue_wait", "notification-center", 0.040, 0.002),
+            ("gsm_submit", "gsm-gateway", 0.280, 0.006),
+            ("carrier_delivery", "sms-provider", 3.500, 0.012),
+        )
+        for country, count in zip(countries, self._random.split(total, weights)):
+            provider = "gsm"
+            for _ in range(count):
+                observed: list[tuple[str, str, float, str]] = []
+                terminal_result = "success"
+                end_to_end = 0.0
+                for stage, service, p50, baseline_failure in stages:
+                    affected = (
+                        effects.cross_region_affected_destination == country
+                        and effects.cross_region_affected_hop == stage
+                    )
+                    multiplier = effects.cross_region_latency_multiplier if affected else 1.0
+                    failure_rate = (
+                        effects.cross_region_failure_rate
+                        if affected and effects.cross_region_failure_rate is not None
+                        else baseline_failure
+                    )
+                    duration = self._random.lognormal_latency(p50, 0.45, multiplier)
+                    failed = self._random.split(1, (1 - failure_rate, failure_rate))[1] == 1
+                    stage_result = "failure" if failed else "success"
+                    observed.append((stage, service, duration, stage_result))
+                    end_to_end += duration
+                    OTP_STAGE_REQUESTS.labels(
+                        country, "sms", provider, stage, service, stage_result
+                    ).inc()
+                    OTP_STAGE_DURATION.labels(
+                        country, "sms", provider, stage, service, stage_result
+                    ).observe(duration)
+                    if stage == "queue_wait":
+                        OTP_QUEUE_WAIT_DURATION.labels(provider, stage_result).observe(duration)
+                    if stage == "carrier_delivery":
+                        OTP_DELIVERY_REPORTS.labels(
+                            country, "sms", provider, stage_result
+                        ).inc()
+                        OTP_DELIVERY_DURATION.labels(
+                            country, "sms", provider, stage_result
+                        ).observe(duration)
+                    if failed:
+                        terminal_result = "failure"
+                        OTP_JOURNEY_FAILURES.labels(
+                            country,
+                            "sms",
+                            provider,
+                            stage,
+                            service,
+                            "timeout" if affected else "dependency_error",
+                        ).inc()
+                        break
+                trace_value = None
+                if self._random.split(1, (0.90, 0.10))[1] == 1:
+                    trace_value = emit_otp_trace(
+                        {
+                            "otp.destination_country": country,
+                            "otp.channel": "sms",
+                            "otp.provider": provider,
+                            "simulation.synthetic": "true",
+                        },
+                        observed,
+                        terminal_result,
+                    )
+                exemplar = {"trace_id": trace_value} if trace_value else None
+                OTP_JOURNEY_REQUESTS.labels(
+                    "vn", country, "sms", provider, terminal_result
+                ).inc(exemplar=exemplar)
+                OTP_JOURNEY_DURATION.labels(
+                    "vn", country, "sms", provider, terminal_result
+                ).observe(end_to_end, exemplar=exemplar)
 
     def _generate_token(self, auth_count: int, effects: EventEffects) -> None:
         baseline = self._settings.baseline

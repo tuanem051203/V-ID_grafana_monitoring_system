@@ -5,13 +5,16 @@
     "images": {
       "prometheus": "prom/prometheus:v3.5.0",
       "alertmanager": "prom/alertmanager:v0.28.1",
-      "grafana": "grafana/grafana:12.1.0"
+      "grafana": "grafana/grafana:12.1.0",
+      "tempo": "grafana/tempo:2.8.2",
+      "otel_collector": "otel/opentelemetry-collector-contrib:0.131.1"
     },
     "ports": {
       "metrics_simulator": 8000,
       "prometheus": 9090,
       "alertmanager": 9093,
-      "grafana": 3000
+      "grafana": 3000,
+      "tempo": 3200
     },
     "targets": {
       "metrics_simulator": "metrics-simulator:8000",

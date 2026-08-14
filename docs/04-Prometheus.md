@@ -1,132 +1,48 @@
-# 04 — Prometheus
+# 04 — Prometheus cho V-ID
 
-## 1. Scrape configuration
+## Target discovery
 
-Ví dụ minh họa:
+Production không dùng static hostname minh họa. Dùng `ServiceMonitor`/`PodMonitor`
+theo convention của cluster và scrape metrics port riêng của từng deployment:
 
-```yaml
-scrape_configs:
-  - job_name: vid-identity-provider
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    metrics_path: /metrics
-    static_configs:
-      - targets:
-          - identity-provider.example.internal:8080
-        labels:
-          environment: test
-          service: identity-provider
+- `identity-provider`, `identity-provider-web`, admin/query deployment nếu có.
+- `oauth2-server` (Hydra) và `oauth2-token`.
+- `authz`, `organization` và các service critical khác.
+- Kong, Redis/Postgres/Kafka exporter và provider integration metrics.
+
+Dev/prod routing đang drift theo
+[`gateway-routing.md`](v-id-intern-docs/docs/architecture/gateway-routing.md); service
+discovery phải dựa trên workload thực tế, không suy ra từ public hostname.
+
+## External labels
+
+Prometheus gắn `environment` và `cluster`. Service tự xuất bounded dimensions như
+operation/result/provider; không để client tự cung cấp label tùy ý.
+
+## Recording rules
+
+Lab hiện có:
+
+- KPI rules cho authentication, OTP, token và availability.
+- Cross-region synthetic RED rules.
+- OTP journey rules cho end-to-end, stage latency/error và delivery receipt.
+
+Quy ước: `vid:<signal>:<aggregation/window>`. Ratio phải dùng cùng eligible set và
+`clamp_min` để tránh chia zero. Histogram aggregate theo `le` trước khi gọi
+`histogram_quantile`.
+
+## Metrics-to-traces
+
+Prometheus bật exemplar storage. Histogram OTP journey có exemplar `trace_id` để
+Grafana mở Tempo. Không thêm `trace_id` thành time-series label.
+
+## Validation
+
+```bash
+promtool check config generated/local/prometheus/prometheus.yml
+promtool check rules generated/local/prometheus/rules/*.yml
+promtool test rules tests/prometheus/*.test.yml
 ```
 
-Trong Kubernetes nên dùng `ServiceMonitor`/`PodMonitor` theo convention hiện có. Không hard-code credential trong repository.
-
-## 2. Recording rules
-
-Quy ước tên:
-
-```text
-<namespace>:<metric_expression>:<aggregation_or_window>
-```
-
-Ví dụ:
-
-```yaml
-groups:
-  - name: vid-kpi-recording
-    interval: 30s
-    rules:
-      - record: vid:auth_success:rate5m
-        expr: |
-          sum by (environment) (
-            rate(auth_success_total[5m])
-          )
-
-      - record: vid:auth_attempts:rate5m
-        expr: |
-          sum by (environment) (
-            rate(auth_requests_total[5m])
-          )
-
-      - record: vid:auth_success_ratio:rate5m
-        expr: |
-          vid:auth_success:rate5m
-          /
-          clamp_min(vid:auth_attempts:rate5m, 1)
-
-      - record: vid:auth_latency_seconds:p95_5m
-        expr: |
-          histogram_quantile(
-            0.95,
-            sum by (environment, le) (
-              rate(auth_request_duration_seconds_bucket[5m])
-            )
-          )
-```
-
-Tương tự cần tạo recorded ratio cho OTP delivery, OTP verification, token issuance và availability.
-
-## 3. Alert rules
-
-Ví dụ symptom alert:
-
-```yaml
-groups:
-  - name: vid-kpi-alerts
-    rules:
-      - alert: VIDAuthenticationSuccessRateLow
-        expr: vid:auth_success_ratio:rate5m < 0.99
-        for: 10m
-        labels:
-          severity: warning
-          service: identity-provider
-          team: vid
-        annotations:
-          summary: V-ID authentication success rate is low
-          description: Authentication success rate has been below 99% for 10 minutes.
-          runbook_url: https://<runbook-host>/authentication-success
-```
-
-Trong implementation, URL này phải được render từ deployment configuration;
-không ghi host trực tiếp trong alert rule. Ngưỡng ví dụ không được áp dụng trước
-khi owner phê duyệt.
-
-## 4. SLO burn-rate rule
-
-Với SLO 99.9%:
-
-```promql
-(
-  1 - vid:auth_success_ratio:rate5m
-)
-/
-(1 - 0.999)
-```
-
-Khi SLO được phê duyệt, nên dùng multi-window, multi-burn-rate. Ví dụ fast burn chỉ firing khi cả cửa sổ ngắn và dài đều vượt ngưỡng để giảm nhiễu.
-
-## 5. Validation
-
-```powershell
-promtool check rules prometheus/rules/vid-kpi-recording-rules.yaml
-promtool check rules prometheus/rules/vid-kpi-alerts.yaml
-promtool test rules prometheus/tests/vid-kpi-rules.test.yaml
-```
-
-Test case tối thiểu:
-
-- Traffic bình thường.
-- Success rate giảm.
-- Latency spike.
-- Counter reset.
-- Mẫu số bằng 0.
-- No-data.
-- Alert pending, firing và resolved.
-
-## 6. Vận hành Prometheus
-
-- Theo dõi `up`, scrape duration và scrape sample count.
-- Alert khi rule evaluation fail.
-- Kiểm tra query performance trước khi merge.
-- Dùng recording rule cho query phức tạp/lặp lại.
-- Retention phải hỗ trợ cửa sổ SLO.
-- Giữ label set nhất quán giữa tử số và mẫu số.
+Test tối thiểu gồm normal, degradation, low/no traffic, counter reset, pending →
+firing → resolved và label preservation. Retention phải đủ cho SLO window.

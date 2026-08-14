@@ -1,100 +1,41 @@
-# 05 — Grafana Dashboard
+# 05 — Grafana dashboards
 
-## 1. Mục tiêu dashboard
+## Dashboard model
 
-Dashboard “V-ID KPIs” phải cho biết sức khỏe user journey trong vòng 30–60 giây, sau đó cho phép drill-down theo service và nguyên nhân.
+Dashboard đi từ user journey tới component thật:
 
-## 2. Cấu trúc dashboard
+1. Overview: authentication, OTP, token và platform symptoms.
+2. Authentication: phân biệt native transition flow và browser Hydra flow khi có
+   dữ liệu thật.
+3. MFA & OTP: send, provider submission, delivery receipt và verification.
+4. OTP Journey: Kong → IdP → Redis/routing → queue → GSM/carrier.
+5. Token Lifecycle: có dimension issuer trong thời kỳ Hydra/IdP transition.
+6. Authorization: `authz` enforcement và policy denial.
+7. Platform/Reliability: service/dependency saturation, SLO và alerts.
+8. Cross-region: chỉ là generic synthetic test dashboard, không phải sơ đồ mạng V-ID.
 
-### Row 1 — KPI overview
+## Variables
 
-Sáu stat panel:
+Luôn có `environment`, `cluster`; thêm bounded `service`, `operation`, `issuer`,
+`realm`, `channel`, `provider`, `destination_country`, `stage` khi metric hỗ trợ.
+Không tạo variable từ phone, client ID không kiểm soát hoặc raw endpoint.
 
-1. Authentication success rate.
-2. Authentication latency p95.
-3. OTP delivery success rate.
-4. OTP verification success rate.
-5. Token issuance success rate.
-6. Platform availability.
+## Drill-down
 
-Mỗi stat có:
+Prometheus cho biết country/provider/stage bị suy giảm. Exemplar mở trace Tempo để
+xem waterfall của request được sample. Production có thể nối span sang structured
+logs bằng `trace_id` sau privacy review.
 
-- Giá trị hiện tại.
-- Sparkline.
-- Threshold đã phê duyệt.
-- Unit đúng.
-- Link tới panel chi tiết.
+## Quy ước hiển thị
 
-### Row 2 — Authentication
+- Stat cho trạng thái hiện tại; time series cho rate/ratio/latency.
+- Percent dùng 0–100%, duration dùng ms/s; no-data khác zero.
+- Panel description ghi boundary, công thức và exclusion.
+- UID/datasource UID ổn định; JSON không chứa credential hay URL cá nhân.
+- Không mặc định mọi OTP quốc tế đi qua region/datacenter của quốc gia nhận.
 
-- Attempts/giây.
-- Success/failure theo thời gian.
-- p50/p95/p99 latency.
-- Failure reason và auth method breakdown.
+## Acceptance
 
-### Row 3 — OTP
-
-- Delivery và verification rate.
-- Volume theo SMS/WhatsApp.
-- Breakdown theo country/provider.
-- Failure reason đã chuẩn hóa.
-
-### Row 4 — Token và platform
-
-- Token issuance rate/latency.
-- HTTP throughput và 4xx/5xx.
-- Availability theo service/operation.
-- Dependency health.
-
-### Row 5 — SLO
-
-- 30-day SLO compliance.
-- Error budget remaining.
-- Fast/slow burn rate.
-- Alert state và incident/deployment annotation.
-
-## 3. Variables
-
-| Variable | Mặc định | Ghi chú |
-|---|---|---|
-| `environment` | Môi trường đang quan sát | Bắt buộc |
-| `service` | identity core | Multi-select có kiểm soát |
-| `realm` | All | Chỉ khi cardinality an toàn |
-| `client` | All hoặc client class | Tránh danh sách quá lớn |
-| `country` | All | Chỉ cho OTP |
-| `channel` | All | SMS/WhatsApp |
-
-## 4. Visualization convention
-
-- Stat: KPI hiện tại.
-- Time series: trend, rate, ratio, latency.
-- Bar chart: bounded category comparison.
-- Table: alert, error reason, dependency state.
-- Không dùng pie chart cho time series hoặc category quá nhiều.
-- Ratio hiển thị percent 0–100%; duration hiển thị seconds/milliseconds.
-- Success dùng xanh, warning vàng, critical đỏ; không chỉ dựa vào màu để truyền đạt trạng thái.
-
-## 5. Query convention
-
-- Ưu tiên recorded series.
-- Query phải filter theo `$environment`.
-- Legend ngắn, ổn định và có ý nghĩa.
-- Không dùng range quá ngắn so với scrape interval.
-- Panel description phải ghi công thức và exclusion.
-
-## 6. Dashboard metadata
-
-- UID ổn định: đề xuất `vid-kpis`.
-- Title: `V-ID KPIs`.
-- Tags: `vid`, `identity`, `slo`, `managed-by-git`.
-- Folder theo convention của tổ chức.
-- Dashboard JSON không chứa credential hoặc URL cá nhân.
-
-## 7. Acceptance criteria
-
-- Import được vào Grafana của môi trường kiểm thử mà không sửa tay.
-- Không có datasource/panel/query error.
-- Variables hoạt động và không tạo query quá nặng.
-- Kiểm tra time range 15m, 6h, 24h, 7d và 30d.
-- No-data được phân biệt với giá trị 0.
-- Sáu KPI khớp với định nghĩa trong `02-KPI-SLI-SLO.md`.
+Dashboard import/provision không sửa tay, không query error, hoạt động ở 15m–30d,
+filters không tạo query quá nặng, và tên service khớp workload V-ID được owner xác
+nhận. Synthetic alias phải được đánh dấu rõ.

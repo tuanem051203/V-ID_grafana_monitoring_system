@@ -259,6 +259,21 @@ class MetricsGeneratorTest(unittest.TestCase):
             counter_total("cross_region_requests_total"),
             counter_total("cross_region_request_duration_seconds_count"),
         )
+        self.assertGreater(counter_total("otp_journey_requests_total"), 0)
+        self.assertEqual(
+            counter_total("otp_journey_requests_total"),
+            counter_total("otp_journey_duration_seconds_count"),
+        )
+        self.assertLessEqual(
+            counter_total("otp_delivery_reports_total"),
+            counter_total("otp_journey_requests_total"),
+        )
+
+        degradation = generator.activate_cross_region_degradation(
+            420, "id", "carrier_delivery", 5.0, 0.15
+        )
+        self.assertTrue(degradation["active"])
+        self.assertEqual(degradation["hop"], "carrier_delivery")
 
     def test_cross_region_event_is_scoped_to_configured_hop(self) -> None:
         scheduler = EventScheduler(

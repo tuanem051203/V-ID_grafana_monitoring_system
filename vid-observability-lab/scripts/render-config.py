@@ -109,6 +109,11 @@ def main() -> None:
         / "vid-cross-region-rules.yml",
         output / "prometheus" / "rules" / "vid-cross-region-rules.yml",
     )
+    render(
+        "../../observability/prometheus/rules/vid-otp-journey-rules.yml",
+        output / "prometheus" / "rules" / "vid-otp-journey-rules.yml",
+        values,
+    )
     render("alertmanager.yml.tpl", output / "alertmanager" / "alertmanager.yml", values)
     shutil.copytree(
         PROJECT_ROOT / "observability" / "alertmanager" / "templates",
@@ -116,6 +121,12 @@ def main() -> None:
         dirs_exist_ok=True,
     )
     render("grafana-prometheus.yml.tpl", output / "grafana" / "prometheus.yml", values)
+    render("tempo.yml.tpl", output / "tempo" / "tempo.yml", values)
+    render(
+        "otel-collector.yml.tpl",
+        output / "otel-collector" / "config.yml",
+        values,
+    )
     print(output)
 
 

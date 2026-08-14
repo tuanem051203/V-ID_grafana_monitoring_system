@@ -13,6 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from vid_mock_metrics.config import load_settings
 from vid_mock_metrics.generator import MetricsGenerator
 from vid_mock_metrics.metrics import REGISTRY
+from vid_mock_metrics.tracing import configure_tracing
 
 log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_name, None)
@@ -25,6 +26,7 @@ logging.basicConfig(
 )
 
 settings = load_settings()
+configure_tracing()
 generator = MetricsGenerator(settings)
 
 
@@ -36,7 +38,7 @@ class OTPQueueWarningRequest(BaseModel):
 class CrossRegionDegradationRequest(BaseModel):
     duration_seconds: int = Field(default=420, ge=60, le=3600)
     destination_region: str = Field(default="id", pattern=r"^[a-z]{2}$")
-    hop: str = Field(default="dc_to_destination", pattern=r"^[a-z][a-z0-9_]*$")
+    hop: str = Field(default="carrier_delivery", pattern=r"^[a-z][a-z0-9_]*$")
     latency_multiplier: float = Field(default=4.0, ge=1.0, le=20.0)
     failure_rate: float = Field(default=0.20, ge=0.0, le=1.0)
 
@@ -112,4 +114,22 @@ async def activate_cross_region_degradation(
 
 @app.delete("/api/simulation/warnings/cross-region-degradation")
 async def clear_cross_region_degradation() -> dict[str, object]:
+    return generator.clear_cross_region_degradation()
+
+
+@app.post("/api/simulation/warnings/otp-journey-degradation")
+async def activate_otp_journey_degradation(
+    request: CrossRegionDegradationRequest,
+) -> dict[str, object]:
+    return generator.activate_cross_region_degradation(
+        request.duration_seconds,
+        request.destination_region,
+        request.hop,
+        request.latency_multiplier,
+        request.failure_rate,
+    )
+
+
+@app.delete("/api/simulation/warnings/otp-journey-degradation")
+async def clear_otp_journey_degradation() -> dict[str, object]:
     return generator.clear_cross_region_degradation()

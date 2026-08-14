@@ -1,5 +1,9 @@
 # Prompt xây dựng Mock Metrics cho V-ID
 
+> Historical input only. Service aliases và assumptions trong prompt này có trước
+> bước đối chiếu `docs/v-id-intern-docs`; không dùng làm production topology hoặc
+> tài liệu implementation hiện hành.
+
 ## Mục tiêu
 
 Xây dựng project **`vid-mock-metrics`** dùng để giả lập Prometheus

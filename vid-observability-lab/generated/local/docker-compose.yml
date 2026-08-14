@@ -8,10 +8,32 @@ services:
       APP_ENV: local
       CONFIG_FILE: /app/config/runtime.json
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     volumes:
       - ../../services/metrics-simulator/config/runtime.json:/app/config/runtime.json:ro
     ports:
       - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      - otel-collector
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.131.1
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./otel-collector/config.yml:/etc/otelcol/config.yml:ro
+    depends_on:
+      - tempo
     restart: unless-stopped
 
   alertmanager:
@@ -33,6 +55,7 @@ services:
     image: prom/prometheus:v3.5.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
+      - --enable-feature=exemplar-storage
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -59,12 +82,14 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+      - tempo
     restart: unless-stopped
 
 volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
+  tempo-data:
 
 secrets:
   smtp_password:

@@ -1,78 +1,41 @@
-# 09 — Tổng quan triển khai
+# 09 — Deployment lifecycle
 
-## 1. Mục tiêu
+## Hai deployment target
 
-Quy trình triển khai bảo đảm dashboard, recording rules, alert rules và tài liệu được kiểm tra, review và quản lý nhất quán bằng Git.
+- **Lab:** Metrics Simulator, Prometheus, Alertmanager, Grafana, OTel Collector và
+  Tempo bằng Docker Compose; toàn bộ dữ liệu/trace là synthetic.
+- **V-ID UAT/production:** instrumentation tại workload thật, service discovery,
+  retention/storage/HA/security theo platform convention. Lab Compose không phải
+  production manifest.
 
-## 2. Vòng đời chung
+## Vòng đời
 
 ```text
-Thiết kế
-   |
-   v
-Phát triển
-   |
-   v
-Validation
-   |
-   v
-Review và Merge
-   |
-   v
-Triển khai UAT
-   |
-   v
-Xác nhận kết quả
-   |
-   +---- đạt ----> Bàn giao và cải tiến
-   |
-   +---- lỗi ----> Rollback và sửa đổi
+v-id-intern-docs + owner confirmation
+→ metric/trace contract
+→ implementation + tests
+→ review/CI
+→ UAT with real topology
+→ evidence and threshold approval
+→ promote or rollback
 ```
 
-## 3. Các giai đoạn
+Trước UAT phải xác nhận:
 
-### Thiết kế
+- Workload và route thực tế; dev/prod hiện có gateway drift.
+- Trạng thái migration `account` → `identity-provider-web` và Hydra-as-issuer.
+- Service/metric owner, SLO và alert notification route.
+- Provider delivery receipt semantics và data/privacy policy.
+- OTel sampling, collector capacity, Tempo retention và access control.
 
-Chốt metric contract, KPI/SLI/SLO, cấu trúc dashboard, alert strategy và owner.
+## Artifacts
 
-### Phát triển
+Dashboard JSON, Prometheus/Alertmanager rules, datasource/Collector/Tempo config,
+tests và docs đều nằm trong Git. Secret được inject ngoài repository. Rollback
+bằng revert/deploy artifact ổn định trước đó; hotfix phải đồng bộ về Git.
 
-Dashboard, rules, tests và tài liệu được thay đổi trên feature branch. Không đưa credential, secret hoặc PII vào repository.
+## Production instrumentation handoff
 
-### Validation
-
-Kiểm tra syntax, Prometheus rules, unit tests, dashboard và tính nhất quán với KPI đã định nghĩa.
-
-### Review và merge
-
-Merge Request ghi rõ phạm vi, kết quả kiểm tra, ảnh hưởng và phương án khôi phục. Thay đổi chỉ được merge khi qua review và CI.
-
-### Triển khai UAT
-
-Artifact đã được review được đưa vào UAT để xác nhận khả năng hoạt động với cấu hình và dữ liệu của môi trường tích hợp. Phần triển khai chi tiết tuân theo quy trình nội bộ của đơn vị vận hành.
-
-### Xác nhận và bàn giao
-
-Đội dự án xác nhận dashboard và rules hoạt động đúng mục tiêu, ghi nhận vấn đề còn lại, cập nhật tài liệu và bàn giao cho owner.
-
-### Rollback
-
-Khi có lỗi, khôi phục phiên bản ổn định trước đó và thực hiện bản sửa đổi thông qua feature branch/Merge Request mới.
-
-## 4. Artifact
-
-| Artifact | Yêu cầu chung |
-|---|---|
-| Dashboard JSON | Version control, UID ổn định, không chứa secret |
-| Recording rules | Hợp lệ và có test |
-| Alert rules | Có owner, mô tả và runbook |
-| Documentation | Khớp với artifact và KPI |
-| Configuration | Tách biệt khỏi credential |
-
-## 5. Nguyên tắc
-
-- Git là nguồn dữ liệu chuẩn cho artifact.
-- Không sửa thủ công mà không đồng bộ lại repository.
-- Cùng một thay đổi phải đi qua validation và review.
-- Mock chỉ hỗ trợ phát triển; xác nhận cuối dùng dữ liệu phù hợp của môi trường.
-- Mọi lỗi và điều chỉnh được xử lý bằng thay đổi có lịch sử.
+Propagate W3C `traceparent` qua Kong, HTTP/gRPC và Kafka headers; instrument caller
+và server boundary, Redis/DB và provider client. Delivery callback được correlate
+bằng identifier đã privacy-review. Không copy phone/OTP/token vào telemetry.

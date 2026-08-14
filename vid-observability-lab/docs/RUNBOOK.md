@@ -1,88 +1,55 @@
-# V-ID Monitoring Runbook
+# V-ID observability runbook
 
-The published runbook base URL is configured per environment in
-`deployments/config.json`. Alert annotations receive the resolved URL during
-configuration rendering.
+## First response
 
-## First response for every alert
+1. Confirm environment, time, affected client/realm and flow.
+2. Decide whether the flow is IdP native/transition, Hydra browser OIDC, token,
+   AuthZ, or international OTP.
+3. Check Overview, then the matching detail dashboard.
+4. Identify the first degraded service/stage, then open a Tempo exemplar.
+5. Correlate deployment/config changes and dependency/provider health.
+6. Mitigate only within owner-approved procedures; verify recovery and record it.
 
-1. Confirm `environment`, `cluster`, `service`, alert start time and user impact.
-2. Open **V-ID SSO — SLO & Sự cố** and check target health, eligible traffic,
-   active alerts and rule evaluation failures.
-3. If telemetry is healthy, open **V-ID SSO — Tổng quan** and identify the
-   affected reason/provider/endpoint.
-4. Check the most recent deployment and configuration changes.
-5. Apply only an approved mitigation; record timestamps and evidence.
-6. Confirm recovery on both the short and confirmation windows before resolving.
+## Authentication
 
-## Metrics target down
+- Native transition: Kong → `identity-provider` challenge/verify/login.
+- Browser: client → Hydra → `identity-provider` login/consent → Hydra.
+- Check Redis/Postgres, App Check rejection classification, session state and the
+  issuer boundary. Do not treat invalid credential as platform outage.
 
-- Check `/health` and `/metrics` directly from the Prometheus network.
-- Check service discovery labels, DNS, port, network policy and TLS/auth config.
-- Inspect exporter logs and Prometheus target error.
-- Do not interpret missing KPI series as a healthy zero-error state.
+## Token
 
-## Rule evaluation failure
+Filter by issuer/grant. Current architecture may contain Hydra and IdP-issued
+tokens while ADR-0007 migration is incomplete; `oauth2-token` is transitioning to
+a Hydra front. Escalate issuer/claim-shape drift separately from latency/outage.
 
-- Open Prometheus `/rules` and inspect the exact failing group/expression.
-- Check metric names, label changes, duplicate series and query resource limits.
-- Run `promtool check rules` and `promtool test rules` against the deployed commit.
-- Roll back the rule-only change if it is the confirmed cause.
+## International OTP
 
-## No eligible traffic
+Use **V-ID SSO — OTP Journey**:
 
-- Compare target `up`, raw request counters and expected business traffic.
-- Confirm deployment has not changed result/reason taxonomy.
-- Confirm filters have not excluded all events.
-- For genuinely quiet environments, adjust routing or minimum-traffic policy
-  through review; do not simply remove no-data detection.
+- `kong_to_idp`: gateway/application boundary.
+- `redis_challenge`: OTP challenge persistence.
+- `route_selection`: Notification Center vs GSM/WhatsApp policy.
+- `queue_wait`: Notification Center backlog.
+- `gsm_submit`: provider API acceptance.
+- `carrier_delivery`: asynchronous delivery receipt.
 
-## Authentication success or token issuance burn
+Fast submit plus slow delivery means the synchronous V-ID path is healthy and the
+downstream provider/carrier is delayed. Missing receipt requires checking callback
+contract, not merely retrying sends. Never paste phone, OTP or token into tickets.
 
-- Break failures down by bounded `reason`, client/grant type and endpoint.
-- Distinguish business rejection from signing, storage, dependency and system
-  errors.
-- Check dependency health, rollout status, saturation and error logs.
-- Consider rollback or traffic shift according to the service deployment runbook.
+## Authorization
 
-## Authentication latency burn
+`organization` is organization source of truth; `authz` evaluates RBAC. Separate
+expected policy denial from `authz` timeout/system error and from cross-account
+connectivity where applicable.
 
-- Compare p50/p95/p99 and under-500ms ratio.
-- Check in-progress gauges, request rate, CPU/memory and downstream latency.
-- Identify whether degradation is global or isolated by client/cluster.
-- Mitigate saturation, dependency latency or a regression using approved actions.
+## Synthetic cross-region
 
-## OTP delivery/provider incident
+Use only for lab demonstration. It does not prove V-ID has a route/datacenter in
+the destination country and must not drive production escalation.
 
-- Check provider state, queue depth, failure reasons and channels.
-- Confirm provider status outside V-ID and whether fallback routing is available.
-- Apply provider failover/rate controls only through the OTP operations procedure.
-- Track backlog recovery after provider service returns.
+## Recovery criteria
 
-## Platform availability burn
-
-- Break 5xx down by service and critical endpoint.
-- Identify common dependency or rollout correlation across services.
-- Verify that the critical-endpoint allowlist is still correct.
-- Coordinate incident ownership when multiple identity services are affected.
-
-## Cross-region request incident
-
-- Confirm source/destination region, affected service, route volume and whether
-  telemetry exists on both sides of every expected hop.
-- Compare the affected country with the other eight destinations to determine
-  whether the incident is route-specific or shared by the VN/DC gateway.
-- Compare end-to-end p95/success with hop p95/error ratio on **V-ID SSO —
-  Cross-region Requests**; identify the first degraded hop.
-- Check gateway health, DNS, TLS, network policy, route changes, saturation and
-  the most recent deployment in both regions.
-- Use a privacy-reviewed trace sample to correlate the request across gateways;
-  never copy phone numbers, tokens or OTP values into incident notes.
-- Traffic shift, failover or route removal requires the approved network/service
-  procedure. Confirm recovery on success rate and latency before closure.
-
-## Closure
-
-Record impact, timeline, root cause, mitigation, dashboard evidence and follow-up
-actions. A production alert is not complete until its owner, notification route,
-dashboard link and published runbook link are verified.
+User-journey SLI returns to baseline, affected stage/error series recover, alert
+resolves, traffic is non-zero and representative, and no retry/backlog wave remains.

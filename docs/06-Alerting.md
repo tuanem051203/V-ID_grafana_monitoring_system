@@ -1,99 +1,47 @@
-# 06 — Alerting Strategy và Runbook
+# 06 — Alerting và runbook
 
-## 1. Mục tiêu
+## Nguyên tắc
 
-Alert phải phát hiện tác động thật, có người chịu trách nhiệm và dẫn tới hành động cụ thể. Dashboard dùng để quan sát; alert chỉ dùng cho tình huống cần can thiệp.
+Page theo user impact hoặc burn rate, không page chỉ vì một pod/CPU cao. Alert phải
+có owner, environment, service thực, dashboard và runbook. Threshold lab chưa được
+dùng cho UAT/production trước khi có baseline và phê duyệt.
 
-## 2. Cấp độ
+## Nhóm alert theo kiến trúc V-ID
 
-| Severity | Ý nghĩa | Route |
-|---|---|---|
-| critical | Outage hoặc error budget burn rất nhanh | Paging/on-call |
-| warning | Suy giảm kéo dài cần xử lý trong giờ làm việc | Team channel/ticket |
-| info | Tín hiệu vận hành, không cần phản ứng ngay | Dashboard/event |
+- IdP authentication/challenge/login suy giảm.
+- Hydra authorize/token hoặc `oauth2-token` front suy giảm.
+- OTP route/provider submission/delivery receipt suy giảm theo country/channel.
+- Redis/Postgres/Kafka dependency tác động tới IdP/session/challenge.
+- `authz` enforce system error/latency; policy denial không mặc định là outage.
+- Kong/critical endpoint availability.
+- Telemetry target/rule/collector/Tempo health.
 
-## 3. Nhóm alert
+OTP triage phải phân biệt:
 
-### User journey
-
-- Authentication success rate thấp.
-- Token issuance success rate thấp.
-- Platform availability thấp.
-- OTP delivery suy giảm theo country/provider.
-- Authentication latency vượt SLO.
-
-### SLO
-
-- Fast burn: tác động lớn, phản ứng nhanh.
-- Slow burn: suy giảm kéo dài.
-- Error budget sắp cạn.
-
-### Monitoring health
-
-- Prometheus target down.
-- Rule evaluation failure.
-- Metric no-data khi có traffic kỳ vọng.
-- Alertmanager notification failure.
-
-### Dependency/resource
-
-Chỉ page khi có quan hệ rõ với user impact. CPU/memory cao đơn thuần thường là warning hoặc context cho symptom alert.
-
-## 4. Chống alert noise
-
-- Dùng `for` duration.
-- Yêu cầu minimum traffic trước khi đánh giá ratio.
-- Group theo service/environment.
-- Inhibit warning khi critical cùng nguyên nhân đang firing.
-- Không alert theo từng pod nếu service-level symptom đã đủ.
-- Tune ngưỡng bằng baseline của dữ liệu thực tế.
-
-## 5. Alert annotation chuẩn
-
-```yaml
-labels:
-  severity: critical
-  service: identity-provider
-  environment: uat
-  team: vid
-annotations:
-  summary: <what is broken>
-  description: <user impact, value, threshold, duration>
-  dashboard_url: <stable dashboard link>
-  runbook_url: <stable runbook link>
+```text
+IdP/Kong latency
+vs Redis challenge persistence
+vs Notification Center queue
+vs GSM provider submission
+vs carrier delivery receipt delay
 ```
 
-## 6. Mẫu runbook
+## Severity
 
-Mỗi runbook gồm:
+| Severity | Điều kiện | Route |
+|---|---|---|
+| critical | outage, mất receipt diện rộng, fast burn | on-call/paging |
+| warning | suy giảm kéo dài, slow burn, backlog | team channel/ticket |
+| info | deployment/synthetic scenario | annotation/event |
 
-1. Alert name và mục đích.
-2. User impact.
-3. Điều kiện firing và query.
-4. Owner/escalation.
-5. Dashboard/log/tracing links.
-6. Các bước xác minh.
-7. Các nguyên nhân thường gặp.
-8. Mitigation an toàn.
-9. Điều kiện escalate/rollback.
-10. Cách xác nhận recovery.
-11. Hành động sau incident.
+## Triage
 
-## 7. Quy trình triage chung
+1. Xác nhận environment, flow và issuer.
+2. Xác định client/realm/country/provider bị ảnh hưởng bằng bounded labels.
+3. Từ symptom dashboard tìm stage/service đầu tiên suy giảm.
+4. Mở Tempo exemplar; kiểm tra change/deployment gần nhất.
+5. Xác minh dependency/provider và delivery-report contract.
+6. Mitigate/rollback theo quyền hạn; theo dõi recovery và ghi timeline.
 
-1. Xác nhận environment và thời điểm bắt đầu.
-2. Kiểm tra KPI user journey và phạm vi ảnh hưởng.
-3. Xác định service/client/realm/country bị ảnh hưởng.
-4. Đối chiếu deployment hoặc configuration change gần nhất.
-5. Kiểm tra dependency và resource saturation.
-6. Thực hiện mitigation/rollback theo quyền hạn.
-7. Theo dõi KPI hồi phục và alert resolved.
-8. Ghi timeline, nguyên nhân và follow-up.
-
-## 8. Kiểm thử alert
-
-- Test rule bằng fixture.
-- Xác nhận alert trong môi trường kiểm thử phù hợp.
-- Xác minh pending → firing → resolved.
-- Xác minh route, group và inhibition.
-- Xác minh link dashboard/runbook.
+Group theo alert/environment/cluster/service, inhibit warning khi critical cùng
+scope, dùng traffic floor và `for` duration để giảm noise.

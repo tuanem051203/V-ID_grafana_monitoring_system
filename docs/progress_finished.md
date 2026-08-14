@@ -1,5 +1,9 @@
 # Báo cáo tiến độ hoàn thành
 
+> Historical milestone record. Kiến trúc và thuật ngữ hiện hành nằm trong
+> `docs/01-Overview.md` và `docs/v-id-intern-docs`; số artifact bên dưới có thể là
+> số liệu trước khi bổ sung OTP Journey, OpenTelemetry Collector và Tempo.
+
 > **V-ID Observability Platform**
 > Hệ thống giám sát tập trung cho V-ID SSO, xây dựng trên Prometheus, Grafana và Alertmanager.
 

@@ -1,0 +1,25 @@
+rule_files:
+  - ../../generated/local/prometheus/rules/vid-otp-journey-rules.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'otp_journey_requests_total{environment="local",cluster="test",source_region="vn",destination_country="id",channel="sms",provider="gsm",result="success"}'
+        values: '0+60x10'
+      - series: 'otp_journey_requests_total{environment="local",cluster="test",source_region="vn",destination_country="id",channel="sms",provider="gsm",result="failure"}'
+        values: '0+0x10'
+      - series: 'otp_stage_requests_total{environment="local",cluster="test",destination_country="id",channel="sms",provider="gsm",stage="gsm_submit",service="gsm-gateway",result="success"}'
+        values: '0+57x10'
+      - series: 'otp_stage_requests_total{environment="local",cluster="test",destination_country="id",channel="sms",provider="gsm",stage="gsm_submit",service="gsm-gateway",result="failure"}'
+        values: '0+3x10'
+    promql_expr_test:
+      - expr: 'vid:otp_journey_success:ratio5m'
+        eval_time: 10m
+        exp_samples:
+          - labels: '{__name__="vid:otp_journey_success:ratio5m",channel="sms",cluster="test",destination_country="id",environment="local",provider="gsm"}'
+            value: 1
+      - expr: 'vid:otp_stage_error:ratio5m'
+        eval_time: 10m
+        exp_samples:
+          - labels: '{__name__="vid:otp_stage_error:ratio5m",channel="sms",cluster="test",destination_country="id",environment="local",provider="gsm",service="gsm-gateway",stage="gsm_submit"}'
+            value: 0.05
