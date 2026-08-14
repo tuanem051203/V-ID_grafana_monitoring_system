@@ -106,21 +106,10 @@ Các URL:
 - Alertmanager: http://localhost:9093
 - Tempo API: http://localhost:3200
 
-Prometheus datasource và các dashboard được provision tự động:
-
-- **V-ID — Overview**: KPI, trend, latency, traffic và symptom.
-- **V-ID — Identity & Access**: authentication, OTP, token và authorization.
-- **V-ID — Application Performance**: HTTP latency, traffic và application
-  error.
-- **V-ID — Infrastructure & Database**: tài nguyên node/pod, database latency,
-  connection và error.
-- **V-ID — SLO & Operations**: telemetry health, eligible traffic, error budget,
-  burn rate và active alerts.
-- **V-ID SSO — Cross-region Requests**: generic synthetic RED scenario để kiểm
-  thử drill-down theo hop; không đại diện topology production của V-ID.
-- **V-ID SSO — OTP Journey**: end-to-end OTP, p95 theo từng stage, provider
-  delivery receipt và drill-down từ Prometheus exemplar sang synthetic trace
-  waterfall trong Tempo.
+Prometheus datasource và 9 dashboard được provision tự động: Overview,
+Authentication, MFA & OTP, OTP Journey, Token Lifecycle, Authorization, Platform
+& Dependencies, SLO & Incidents và Cross-region Requests. Danh mục và mục đích
+từng dashboard nằm tại `../docs/OBSERVABILITY.md`.
 
 Cross-region simulator phát 10% platform traffic qua route giả lập và có kịch bản
 suy giảm riêng. Destination country không chứng minh V-ID có datacenter hoặc
@@ -236,15 +225,9 @@ không đạt.
 
 ## Continuous Integration
 
-GitHub Actions workflow tại `.github/workflows/ci.yml` chạy khi có Pull Request,
-push vào `main` hoặc chạy thủ công. Pipeline gồm các quality gate độc lập:
-
-- Ruff, Pyright, Python unit test và dependency audit.
-- Dashboard JSON và dashboard contract test.
-- Prometheus config/rules, `promtool` rule test và Alertmanager config.
-- Docker Compose model validation.
-- Build và quét lỗ hổng image bằng Trivy.
-- Dựng toàn bộ stack, kiểm tra health endpoint, rule groups và Prometheus target.
+Repository cung cấp các script quality gate để tích hợp vào CI của GitLab hoặc
+nền tảng được owner lựa chọn. Hiện repository chưa version-control pipeline
+definition; đây là production gate, không phải capability đã hoàn tất.
 
 Chạy các gate tương ứng trên máy phát triển:
 
