@@ -18,18 +18,18 @@ living document và owner trước khi thay contract/code.
 
 ## Bản đồ câu hỏi
 
-| Câu hỏi | Tài liệu |
-|---|---|
-| V-ID có capability nào? | [Products](v-id-intern-docs/docs/architecture/products.md), [feature status](v-id-intern-docs/docs/architecture/features.md) |
-| Service/dependency thật tên gì? | [Components](v-id-intern-docs/docs/architecture/components.md) |
-| AuthN/AuthZ/OAuth chạy thế nào? | [Architecture](v-id-intern-docs/docs/architecture/architecture.md), [AuthZ](v-id-intern-docs/docs/authz) |
-| Hostname route tới đâu? | [Gateway routing](v-id-intern-docs/docs/architecture/gateway-routing.md) |
-| Lab quan sát boundary nào? | [Observability handbook](OBSERVABILITY.md) |
-| KPI tính và loại trừ ra sao? | [KPI contract](../vid-observability-lab/docs/KPI-CONTRACT.md) |
-| Chạy/cấu hình/validate thế nào? | [Lab README](../vid-observability-lab/README.md) |
-| OTP/cross-region có nghĩa gì? | [OTP journey](../vid-observability-lab/docs/OTP-JOURNEY-MONITORING.md), [cross-region](../vid-observability-lab/docs/CROSS-REGION-MONITORING.md) |
-| Alert xảy ra thì làm gì? | [Runbook](../vid-observability-lab/docs/RUNBOOK.md) |
-| Thư mục nào có ownership gì? | [Repository structure](../vid-observability-lab/docs/REPOSITORY-STRUCTURE.md) |
+| Câu hỏi                            | Tài liệu                                                                                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| V-ID có capability nào?            | [Products](v-id-intern-docs/docs/architecture/products.md), [feature status](v-id-intern-docs/docs/architecture/features.md)                     |
+| Service/dependency thật tên gì?   | [Components](v-id-intern-docs/docs/architecture/components.md)                                                                                  |
+| AuthN/AuthZ/OAuth chạy thế nào?   | [Architecture](v-id-intern-docs/docs/architecture/architecture.md), [AuthZ](v-id-intern-docs/docs/authz)                                         |
+| Hostname route tới đâu?           | [Gateway routing](v-id-intern-docs/docs/architecture/gateway-routing.md)                                                                        |
+| Lab quan sát boundary nào?         | [Observability handbook](OBSERVABILITY.md)                                                                                                      |
+| KPI tính và loại trừ ra sao?     | [KPI contract](../vid-observability-lab/docs/KPI-CONTRACT.md)                                                                                   |
+| Chạy/cấu hình/validate thế nào? | [Lab README](../vid-observability-lab/README.md)                                                                                                |
+| OTP/cross-region có nghĩa gì?     | [OTP journey](../vid-observability-lab/docs/OTP-JOURNEY-MONITORING.md), [cross-region](../vid-observability-lab/docs/CROSS-REGION-MONITORING.md) |
+| Alert xảy ra thì làm gì?         | [Runbook](../vid-observability-lab/docs/RUNBOOK.md)                                                                                             |
+| Thư mục nào có ownership gì?    | [Repository structure](../vid-observability-lab/docs/REPOSITORY-STRUCTURE.md)                                                                   |
 
 ## Quy tắc duy trì
 
