@@ -1,223 +1,238 @@
 # International OTP Journey Monitoring
 
-## 1. Mục tiêu
+## 1. Tóm tắt giải pháp
 
-Chức năng này mô phỏng và giám sát toàn bộ hành trình gửi SMS OTP quốc tế của
-V-ID nhằm trả lời các câu hỏi:
+Mục tiêu của hạng mục này là giúp đội vận hành trả lời nhanh câu hỏi:
 
-- OTP journey có thành công không và mất tổng cộng bao lâu?
-- Request bắt đầu chậm hoặc lỗi tại stage/service nào?
-- Sự cố nằm trong Kong, Identity Provider, Redis, hàng đợi hay phía GSM/carrier?
-- Chỉ một country/provider bị ảnh hưởng hay toàn bộ luồng dùng chung bị suy giảm?
-- Một request được sample đã tiêu tốn thời gian như thế nào trên trace waterfall?
+> Khi người dùng đăng nhập bằng số điện thoại quốc tế và OTP đến chậm hoặc không
+> đến, request đang bị nghẽn tại V-ID, hàng đợi gửi tin, GSM provider hay carrier?
 
-Đây là implementation cho môi trường demo. Metrics, traces, country distribution,
-latency và failure đều là dữ liệu synthetic.
+Giải pháp kết hợp hai lớp quan sát:
 
-## 2. Cơ sở kiến trúc V-ID
+- **Prometheus + Grafana** phát hiện country/provider/stage nào đang chậm hoặc lỗi
+  trên toàn bộ traffic.
+- **OpenTelemetry + Tempo** mở waterfall của một request được sample để xác minh
+  chính xác thời gian tiêu tốn tại từng stage.
 
-Nguồn tham chiếu:
+Kết quả của demo là một dashboard có thể chỉ ra vị trí nghi ngờ bottleneck, sau đó
+đi từ biểu đồ tổng hợp tới trace chi tiết của request.
 
-- `../../docs/v-id-intern-docs/docs/architecture/architecture.md`
-- `../../docs/v-id-intern-docs/docs/architecture/components.md`
-- `../../docs/v-id-intern-docs/docs/architecture/gateway-routing.md`
+## 2. Bài toán cần giải quyết
 
-Theo tài liệu V-ID, `identity-provider` sở hữu OTP và dùng `RoutingSMSSender` để
-chọn channel/provider. Số +84 tiếp tục qua Notification Center; destination được
-allowlist có thể route qua GSM, còn WhatsApp là một channel/policy riêng.
+Nếu chỉ đo tổng thời gian gửi OTP, hệ thống chỉ biết “OTP mất 12 giây” nhưng không
+biết 12 giây đó nằm ở đâu. Trong khi một OTP journey đi qua nhiều boundary:
 
-Quốc gia của số điện thoại không chứng minh V-ID chạy compute hoặc có datacenter
-tại quốc gia đó. Vì vậy implementation không dùng mô hình “VN datacenter →
-destination-country datacenter” để kết luận bottleneck OTP. Boundary được mô phỏng
-theo service/dependency của hành trình gửi OTP:
-
-```text
-Client/edge
-  → Kong
-  → identity-provider
-  → Redis challenge persistence
-  → OTP route selection
-  → Notification Center queue
-  → GSM/provider submission
-  → carrier delivery receipt
+```mermaid
+flowchart LR
+    U[Người dùng] --> E[Edge / Ingress]
+    E --> K[Kong]
+    K --> I[identity-provider]
+    I --> R[(Redis<br/>OTP challenge)]
+    R --> S[Route selection]
+    S --> Q[Notification Center<br/>queue]
+    Q --> G[GSM gateway / provider]
+    G --> C[Carrier]
+    C --> D[Delivery receipt]
 ```
 
-Provider chấp nhận request không đồng nghĩa người dùng đã nhận SMS. Delivery
-receipt được theo dõi như một boundary bất đồng bộ riêng.
+Có hai loại thời gian khác nhau cần phân biệt:
 
-## 3. Các stage đã triển khai
+```mermaid
+flowchart LR
+    A[Client gửi OTP request] --> B[Provider chấp nhận request]
+    B --> C[Carrier gửi delivery receipt]
 
-| Stage | Service target | Nội dung mô phỏng |
+    subgraph Sync[API / provider submission latency]
+      A --> B
+    end
+
+    subgraph Async[SMS delivery latency]
+      B --> C
+    end
+```
+
+Provider trả response nhanh không đồng nghĩa người dùng đã nhận SMS. Vì vậy
+delivery receipt được đo riêng với synchronous API path.
+
+## 3. Phạm vi kiến trúc V-ID
+
+Giải pháp được đối chiếu với tài liệu trong `docs/v-id-intern-docs`:
+
+- `identity-provider` sở hữu luồng OTP.
+- IdP dùng `RoutingSMSSender` để chọn channel/provider.
+- Số +84 tiếp tục qua Notification Center.
+- Destination được allowlist có thể route qua GSM; WhatsApp là channel riêng.
+- Kong là gateway trên request path.
+- Redis lưu trạng thái OTP challenge.
+
+Quốc gia của số điện thoại không chứng minh V-ID có datacenter tại quốc gia đó.
+Do đó giải pháp giám sát theo **service/dependency boundary thực tế**, không giả
+định request đi qua “datacenter của nước nhận OTP”.
+
+## 4. Cách giải pháp hoạt động
+
+### 4.1 Chia request thành các stage
+
+Mỗi OTP journey được chia thành bảy stage có thể đo độc lập:
+
+| Stage | Thành phần | Câu hỏi được trả lời |
 |---|---|---|
-| `edge_to_kong` | `kong` | Thời gian từ edge/ingress tới Kong |
-| `kong_to_idp` | `identity-provider` | Kong chuyển request tới IdP |
-| `redis_challenge` | `redis` | IdP lưu OTP challenge |
-| `route_selection` | `identity-provider` | Chọn route/channel/provider |
-| `queue_wait` | `notification-center` | Message chờ consumer xử lý |
-| `gsm_submit` | `gsm-gateway` | Gửi request và chờ provider chấp nhận |
-| `carrier_delivery` | `sms-provider` | Chờ delivery receipt từ carrier/provider |
+| `edge_to_kong` | Edge/Kong | Request có chậm trước gateway không? |
+| `kong_to_idp` | Kong/IdP | Gateway gọi IdP có chậm không? |
+| `redis_challenge` | Redis | Lưu OTP challenge có nghẽn không? |
+| `route_selection` | IdP | Chọn Notification Center/GSM có bất thường không? |
+| `queue_wait` | Notification Center | Message có nằm chờ lâu không? |
+| `gsm_submit` | GSM/provider API | Provider có nhận request chậm/lỗi không? |
+| `carrier_delivery` | Provider/carrier | SMS delivery receipt có đến chậm không? |
 
-Simulator xử lý các stage tuần tự. Khi một stage thất bại:
+Nếu một stage lỗi, journey dừng tại stage đó và không tạo các stage phía sau. Điều
+này giúp tìm được **stage lỗi đầu tiên**, thay vì hiểu nhầm stage không xuất hiện
+là nguyên nhân sự cố.
 
-1. Stage đó được ghi nhận với `result="failure"`.
-2. `otp_journey_failures_total` ghi stage/service/reason terminal.
-3. Các stage phía sau không được sinh.
-4. Journey kết thúc với `result="failure"`.
+### 4.2 Thu thập metrics và traces
 
-Nhờ đó, việc không có `carrier_delivery` không tự động có nghĩa carrier lỗi; request
-có thể đã dừng tại Redis, queue hoặc `gsm_submit`.
+```mermaid
+flowchart TB
+    SIM[OTP Journey Simulator]
 
-## 4. Metrics đã triển khai
+    SIM -->|Counters / Histograms| P[Prometheus]
+    P --> RR[Recording & Alert Rules]
+    RR --> G[Grafana Dashboard]
+    RR --> A[Alertmanager]
 
-### End-to-end journey
+    SIM -->|10% sampled OTLP traces| O[OpenTelemetry Collector]
+    O --> T[Tempo]
+    T --> G
 
-| Metric | Type | Ý nghĩa |
-|---|---|---|
-| `otp_journey_requests_total` | Counter | Tổng journey theo country/channel/provider/result |
-| `otp_journey_duration_seconds` | Histogram | Tổng latency của các stage đã đi qua |
-| `otp_journey_failures_total` | Counter | Terminal failure theo stage/service/reason |
+    G -->|Click exemplar trace_id| T
+```
 
-### Per-stage và delivery
+- Metrics dùng để nhìn toàn cảnh: throughput, success rate, p95, errors và queue.
+- Khoảng 10% journey được sample thành synthetic trace.
+- Prometheus histogram gắn exemplar `trace_id`.
+- Từ điểm bất thường trên Grafana có thể mở đúng trace trong Tempo.
 
-| Metric | Type | Ý nghĩa |
-|---|---|---|
-| `otp_stage_requests_total` | Counter | Request đến được từng stage và result |
-| `otp_stage_duration_seconds` | Histogram | Latency tại từng stage/service |
-| `otp_queue_wait_duration_seconds` | Histogram | Thời gian chờ Notification Center queue |
-| `otp_delivery_reports_total` | Counter | Delivery receipt success/failure |
-| `otp_delivery_duration_seconds` | Histogram | Thời gian provider submission → receipt |
-| `otp_queue_size` | Gauge | Queue depth hiện tại |
+## 5. Cách phát hiện bottleneck
 
-Labels được giới hạn ở các giá trị bounded như `source_region`,
-`destination_country`, `channel`, `provider`, `stage`, `service`, `result` và
-`reason`. Không đưa phone number, OTP, user/session/challenge/request ID, token
-hoặc `trace_id` vào Prometheus labels.
+Quy trình điều tra được chuẩn hóa như sau:
 
-## 5. Cách simulator sinh một journey
+```mermaid
+flowchart TD
+    A[Journey latency hoặc error tăng] --> B[Filter country / provider / channel]
+    B --> C[So sánh p95 và error từng stage]
+    C --> D[Tìm stage đầu tiên lệch baseline]
+    D --> E[Kiểm tra throughput, queue và failure reason]
+    E --> F[Mở exemplar trong Tempo]
+    F --> G{Có ít nhất 2 tín hiệu đồng thuận?}
+    G -->|Có| H[Xác định bottleneck và owner]
+    G -->|Không| I[Tiếp tục quan sát / bổ sung instrumentation]
+    H --> J[Mitigate và xác nhận recovery]
+```
 
-Mỗi batch tạo một tỷ lệ international OTP từ authentication traffic, sau đó:
+Không kết luận dựa trên một biểu đồ hoặc một trace đơn lẻ. Một kết luận đáng tin
+cậy cần ít nhất hai tín hiệu, ví dụ:
 
-1. Chọn destination country theo traffic weight cấu hình.
-2. Dùng channel `sms` và synthetic provider `gsm`.
-3. Sinh latency log-normal riêng cho từng stage.
-4. Áp dụng baseline failure rate hoặc degradation đang active.
-5. Cộng stage duration thành end-to-end duration.
-6. Dừng ngay tại terminal failure.
-7. Ghi Prometheus counter/histogram.
-8. Sample khoảng 10% journey để phát synthetic trace.
+- Stage p95 tăng và span tương ứng trong nhiều trace cũng chậm.
+- Error ratio tăng và terminal failure có reason `timeout`.
+- Queue depth tăng đồng thời queue-wait tăng.
+- `gsm_submit` bình thường nhưng `carrier_delivery` tăng mạnh.
 
-Country hiện được mô phỏng gồm `us`, `dk`, `id`, `ph`, `la`, `in`, `kz`, `ru`
-và `nl`. Danh sách này phục vụ demo/filter, không phải production routing contract.
+## 6. Ví dụ kết quả điều tra
 
-## 6. Distributed tracing đã triển khai
+### Trường hợp carrier giao SMS chậm
 
 ```text
-metrics-simulator
-  └─ OTLP/gRPC
-      → OpenTelemetry Collector
-      → Tempo
-      → Grafana Explore / Traces Drilldown
+POST /v1/auth/challenge                 12.40 s
+├─ edge_to_kong                         0.02 s
+├─ kong_to_idp                          0.05 s
+├─ redis_challenge                      0.01 s
+├─ route_selection                      0.004 s
+├─ queue_wait                           0.07 s
+├─ gsm_submit                           0.34 s
+└─ carrier_delivery                    11.91 s
 ```
 
-Root span có tên `POST /v1/auth/challenge`; mỗi stage là một child span tuần tự.
-Trace chỉ chứa bounded attributes:
+Kết luận:
+
+- Kong, IdP, Redis và queue nằm trong baseline.
+- Provider nhận request trong 340 ms.
+- Carrier delivery chiếm khoảng 96% tổng latency.
+- Bottleneck nghi ngờ nằm phía provider/carrier, không nằm trong V-ID synchronous
+  request path.
+
+### Trường hợp Notification Center backlog
 
 ```text
-otp.destination_country
-otp.channel
-otp.provider
-otp.stage
-otp.result
-service.target
-simulation.synthetic
+queue depth:       500 messages
+queue_wait p95:    4.5 seconds
+gsm_submit p95:    normal
 ```
 
-Histogram end-to-end đính kèm exemplar `trace_id`, cho phép từ panel Grafana mở
-đúng waterfall trong Tempo. `trace_id` chỉ nằm trong exemplar, không trở thành
-Prometheus series label.
+Kết luận: request bị giữ trước khi gửi sang GSM; cần điều tra consumer throughput,
+worker concurrency hoặc retry backlog của Notification Center.
 
-Tempo chạy monolithic cho lab. Tempo 2.8 bật metrics-generator với processor
-`local-blocks` để Grafana Traces Drilldown chạy được TraceQL metrics như `rate()`.
+### Bảng nhận diện nhanh
 
-## 7. Recording rules và alerts
+| Tín hiệu | Bottleneck nghi ngờ |
+|---|---|
+| `redis_challenge` tăng, trace dừng tại Redis | Redis/network/connection pool |
+| Queue depth và `queue_wait` cùng tăng | Notification Center backlog |
+| `gsm_submit` chậm/lỗi, receipt giảm | GSM/provider submission API |
+| `gsm_submit` nhanh, `carrier_delivery` chậm | Provider/carrier delivery |
+| Mọi country chậm tại `kong_to_idp` | Kong/IdP dùng chung |
+| Chỉ một country/provider chậm | Route/provider cụ thể |
 
-Các recorded series đã triển khai:
+## 7. Nội dung đã hoàn thành
+
+### Simulator
+
+- Sinh journey tuần tự qua bảy stage.
+- Latency dùng phân phối log-normal theo từng stage.
+- Dừng journey tại terminal failure.
+- Hỗ trợ degradation theo country và stage.
+- Hỗ trợ queue-backlog scenario.
+- Sample khoảng 10% journey thành trace.
+
+### Prometheus
+
+- End-to-end request count, success và latency.
+- Per-stage request count, latency và error.
+- Queue wait/depth.
+- Provider delivery receipt và delivery duration.
+- Recording rules tính rate, success ratio và p95.
+- Alerts cho journey latency, stage degradation và missing receipt.
+
+### Grafana và Tempo
+
+- Dashboard **V-ID SSO — OTP Journey**.
+- Filter environment, cluster, country, channel, provider và stage.
+- Panel xác định stage bottleneck.
+- Prometheus exemplar mở Tempo waterfall.
+- Tempo `local-blocks` hỗ trợ Grafana Traces Drilldown và TraceQL metrics.
+
+## 8. Dashboard dành cho demo
+
+URL local:
 
 ```text
-vid:otp_journey_requests:rate5m
-vid:otp_journey_success:ratio5m
-vid:otp_journey_latency:p95_5m
-vid:otp_stage_latency:p95_5m
-vid:otp_stage_error:ratio5m
-vid:otp_delivery_latency:p95_5m
+http://localhost:3000/d/sso-otp-journey
 ```
 
-Các alert chính:
+Các panel chính:
 
-- `VIDOTPJourneyLatencyHigh`: end-to-end p95 vượt ngưỡng demo.
-- `VIDOTPStageDegraded`: stage latency hoặc error ratio tăng.
-- `VIDOTPDeliveryReceiptMissing`: vẫn có journey nhưng không có delivery report.
-- Alert queue backlog hiện có dùng `otp_queue_size`.
+1. OTP journeys/second.
+2. Journey success ratio.
+3. End-to-end journey p95.
+4. Delivery receipt p95.
+5. Stage latency p95 — bottleneck locator.
+6. Stage error ratio.
+7. Terminal failures theo stage/service/reason.
+8. Queue depth và queue-wait p95.
+9. Journey latency có trace exemplars.
 
-Threshold hiện chỉ phục vụ lab; không dùng làm SLO/alert production trước khi có
-baseline và owner phê duyệt.
+## 9. Kịch bản demo đề xuất
 
-## 8. Dashboard đã triển khai
-
-Dashboard: **V-ID SSO — OTP Journey**
-
-URL local: `http://localhost:3000/d/sso-otp-journey`
-
-Các panel gồm:
-
-- OTP journeys/second.
-- Journey success ratio.
-- End-to-end journey p95.
-- Delivery receipt p95.
-- Stage latency p95 — bottleneck locator.
-- Stage error ratio.
-- Terminal failure theo stage/service/reason.
-- Queue depth và queue-wait p95.
-- Raw journey latency có trace exemplars.
-
-Variables gồm `environment`, `cluster`, `destination_country`, `channel`,
-`provider` và `stage`.
-
-## 9. Khởi chạy local
-
-```bash
-cd vid-observability-lab
-cp .env.example .env
-```
-
-Đặt tối thiểu trong `.env`:
-
-```dotenv
-GRAFANA_ADMIN_PASSWORD=admin
-VID_SMTP_APP_PASSWORD=unused
-```
-
-Render và chạy stack:
-
-```bash
-python3 scripts/render-config.py --environment local
-docker compose --env-file .env -f generated/local/docker-compose.yml up --build -d
-```
-
-Kiểm tra:
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:3200/ready
-docker compose --env-file .env -f generated/local/docker-compose.yml ps
-```
-
-Tempo không có web UI tại `http://localhost:3200/`; response 404 ở `/` là bình
-thường. Trace được xem qua Grafana tại `http://localhost:3000`.
-
-## 10. Tạo degradation scenario
-
-Ví dụ làm chậm carrier delivery cho Indonesia trong 420 giây:
+Kích hoạt carrier degradation cho Indonesia:
 
 ```bash
 curl -X POST http://localhost:8000/api/simulation/warnings/otp-journey-degradation \
@@ -231,112 +246,128 @@ curl -X POST http://localhost:8000/api/simulation/warnings/otp-journey-degradati
   }'
 ```
 
-`hop` có thể là bất kỳ stage nào trong bảng ở mục 3. Xóa scenario:
+Kết quả mong đợi trên dashboard:
+
+```mermaid
+flowchart LR
+    A[Indonesia Journey p95 tăng] --> B[Stage latency breakdown]
+    B --> C[carrier_delivery tăng mạnh]
+    C --> D[gsm_submit vẫn bình thường]
+    D --> E[Mở Tempo exemplar]
+    E --> F[Waterfall xác nhận carrier chiếm phần lớn latency]
+```
+
+Xóa scenario:
 
 ```bash
 curl -X DELETE \
   http://localhost:8000/api/simulation/warnings/otp-journey-degradation
 ```
 
-Tạo queue backlog riêng:
+## 10. Kiến trúc triển khai local
+
+```text
+Metrics Simulator :8000
+Prometheus        :9090
+Alertmanager      :9093
+Grafana           :3000
+Tempo API         :3200
+OTel Collector    :4317/4318 trong Docker network
+```
+
+Khởi động:
 
 ```bash
-curl -X POST http://localhost:8000/api/simulation/warnings/otp-queue-backlog \
-  -H 'content-type: application/json' \
-  -d '{"duration_seconds":420,"queue_size":500}'
+cd vid-observability-lab
+cp .env.example .env
 ```
 
-## 11. Quy trình phát hiện bottleneck
+Đặt secret local trong `.env`:
 
-### Bước 1 — Xác nhận end-to-end symptom
-
-Kiểm tra Journey success, Journey p95 và Delivery p95. Nếu chỉ Delivery p95 tăng,
-synchronous API path có thể vẫn bình thường.
-
-### Bước 2 — Thu hẹp phạm vi
-
-Filter theo `destination_country`, `provider` và `channel`. Nếu mọi country cùng
-chậm tại một internal stage, nghi ngờ shared V-ID component. Nếu chỉ một country
-chậm tại provider/delivery, nghi ngờ route/carrier cụ thể.
-
-### Bước 3 — Tìm stage đầu tiên lệch baseline
-
-```promql
-vid:otp_stage_latency:p95_5m{
-  destination_country="id",
-  provider="gsm"
-}
+```dotenv
+GRAFANA_ADMIN_PASSWORD=admin
+VID_SMTP_APP_PASSWORD=unused
 ```
 
-Không chọn stage có duration tuyệt đối lớn nhất; so sánh mỗi stage với baseline
-của chính nó. `carrier_delivery` tự nhiên dài hơn Redis.
-
-### Bước 4 — Đối chiếu error, throughput và queue
-
-```promql
-vid:otp_stage_error:ratio5m{
-  destination_country="id",
-  provider="gsm"
-}
+```bash
+python3 scripts/render-config.py --environment local
+docker compose --env-file .env -f generated/local/docker-compose.yml up --build -d
 ```
 
-```promql
-sum by (stage) (
-  rate(otp_stage_requests_total{
-    destination_country="id",
-    provider="gsm"
-  }[5m])
-)
+Tempo không có web UI ở `http://localhost:3200/`; trả về 404 tại `/` là bình
+thường. Trace được xem trong Grafana. Endpoint kiểm tra Tempo là `/ready`.
+
+## 11. Metrics và recorded series
+
+Metrics chính:
+
+```text
+otp_journey_requests_total
+otp_journey_duration_seconds
+otp_stage_requests_total
+otp_stage_duration_seconds
+otp_journey_failures_total
+otp_delivery_reports_total
+otp_delivery_duration_seconds
+otp_queue_wait_duration_seconds
+otp_queue_size
 ```
 
-Stage trước bình thường, stage hiện tại chậm/lỗi và traffic stage sau giảm là dấu
-hiệu boundary hiện tại gây nghẽn. Với queue, cần thấy cả queue depth và queue-wait
-tăng trước khi kết luận backlog.
+Recorded series:
 
-### Bước 5 — Xác minh bằng Tempo waterfall
-
-Trong dashboard, mở panel **Journey latency with trace exemplars**, nhấn exemplar
-`trace_id` và mở bằng Tempo. Hoặc vào Grafana Explore → Tempo và query:
-
-```traceql
-{ resource.service.name = "vid-metrics-simulator" }
+```text
+vid:otp_journey_requests:rate5m
+vid:otp_journey_success:ratio5m
+vid:otp_journey_latency:p95_5m
+vid:otp_stage_latency:p95_5m
+vid:otp_stage_error:ratio5m
+vid:otp_delivery_latency:p95_5m
 ```
 
-Đọc root duration, child span dài nhất, stage failure đầu tiên và khoảng thời gian
-không được child span giải thích. Một trace chỉ là sample; cần đối chiếu nhiều trace
-và metrics tổng hợp trước khi kết luận.
+Prometheus labels chỉ chứa dimension bounded. Phone number, OTP, user ID,
+challenge/request/session/trace ID và token không được dùng làm series labels.
 
-## 12. Mẫu kết luận
+## 12. Giới hạn hiện tại
 
-| Tín hiệu | Kết luận nghi ngờ |
-|---|---|
-| `redis_challenge` p95 tăng, trace dừng tại Redis | Redis/network/pool bottleneck |
-| Queue depth và `queue_wait` cùng tăng | Notification Center consumer/backlog |
-| `gsm_submit` chậm/lỗi, receipt giảm | Provider submission/API bottleneck |
-| `gsm_submit` nhanh, `carrier_delivery` chậm | Provider/carrier delivery delay |
-| Mọi country chậm tại `kong_to_idp` | Shared Kong/IdP boundary |
-| Chỉ một country/provider chậm | Route/provider-specific degradation |
+Đây là demo observability contract, chưa phải distributed tracing production:
 
-Chỉ kết luận khi có ít nhất hai tín hiệu đồng thuận, ví dụ stage p95 + trace span,
-error ratio + failure reason, hoặc queue depth + queue wait.
+- Một simulator tạo metrics và spans mang tên nhiều service target.
+- Country weights, latency, failure và thresholds là synthetic.
+- Delivery receipt được mô phỏng, chưa kết nối provider thật.
+- Dashboard generic cross-region không chứng minh production network topology.
+- Alert threshold chưa được phê duyệt thành SLO production.
 
-## 13. Giới hạn và hướng production
+## 13. Bước tiếp theo khi tích hợp production
 
-Implementation hiện tại không phải distributed system thật: một simulator tạo
-metrics và spans mang tên các service target khác nhau. Nó chứng minh dashboard,
-PromQL, alerts, exemplars và trace workflow, không chứng minh production topology.
+```mermaid
+flowchart TD
+    A[Demo contract đã hoàn thành] --> B[Owner xác nhận topology và SLI]
+    B --> C[Instrument Kong và Go services]
+    C --> D[Propagate W3C traceparent HTTP/gRPC]
+    D --> E[Propagate context qua Kafka/queue]
+    E --> F[Instrument Redis/DB/provider client]
+    F --> G[Correlate provider callback an toàn]
+    G --> H[UAT baseline và điều chỉnh threshold]
+    H --> I[Production rollout]
+```
 
-Khi tích hợp V-ID thật cần:
+Cần thống nhất cách nối synchronous submission với asynchronous delivery callback,
+ví dụ dùng span link hoặc correlation identifier đã qua privacy review. Không đưa
+phone, OTP, token, cookie hoặc dữ liệu định danh vào telemetry chưa được security
+và privacy owner phê duyệt.
 
-1. Instrument Kong và từng Go service bằng OpenTelemetry middleware.
-2. Propagate W3C `traceparent` qua HTTP/gRPC.
-3. Inject/extract trace context qua Kafka/message headers.
-4. Instrument Redis/DB và outbound provider client.
-5. Correlate provider callback bằng identifier đã privacy-review.
-6. Tách synchronous submission trace khỏi asynchronous delivery bằng span link
-   hoặc trace strategy được owner thống nhất.
-7. Thay synthetic country/provider weights và thresholds bằng topology/baseline thật.
-8. Xác nhận sampling, retention, access control và telemetry ownership.
+## 14. Kết luận
 
-Không đưa phone, OTP, token, cookie hoặc thông tin định danh vào metric labels,
-span attributes hay logs chưa qua privacy/security review.
+Hạng mục đã chứng minh được quy trình:
+
+```text
+Phát hiện symptom bằng metrics
+→ thu hẹp theo country/provider
+→ tìm stage đầu tiên lệch baseline
+→ xác minh request bằng Tempo waterfall
+→ xác định component owner
+→ theo dõi recovery
+```
+
+Giá trị chính của giải pháp không chỉ là biết OTP chậm, mà là chỉ ra được OTP chậm
+ở đâu và cung cấp bằng chứng metrics + trace để chuyển đúng đội xử lý.
