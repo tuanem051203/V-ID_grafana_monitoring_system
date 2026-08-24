@@ -12,10 +12,22 @@
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
-        "required": ["project_name", "cluster", "public_urls", "alertmanager"],
+        "required": ["project_name", "cluster", "tracing", "public_urls", "alertmanager"],
         "properties": {
           "project_name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]+$"},
           "cluster": {"type": "string", "minLength": 1},
+          "tracing": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sampler", "sampler_arg", "otp_trace_ratio"],
+            "properties": {
+              "sampler": {
+                "enum": ["always_on", "parentbased_traceidratio", "traceidratio"]
+              },
+              "sampler_arg": {"type": "number", "minimum": 0, "maximum": 1},
+              "otp_trace_ratio": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          },
           "public_urls": {
             "type": "object",
             "required": ["metrics_simulator", "prometheus", "alertmanager", "grafana", "runbooks"],

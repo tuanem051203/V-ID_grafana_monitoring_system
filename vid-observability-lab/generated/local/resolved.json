@@ -37,5 +37,10 @@
   "public_urls_runbooks": "http://localhost:3000/runbooks",
   "targets_alertmanager": "alertmanager:9093",
   "targets_metrics_simulator": "metrics-simulator:8000",
-  "targets_prometheus": "prometheus:9090"
+  "targets_prometheus": "prometheus:9090",
+  "tracing_otp_trace_ratio": "1.0",
+  "tracing_propagators": "tracecontext,baggage",
+  "tracing_sampler": "always_on",
+  "tracing_sampler_arg": "1.0",
+  "tracing_service_version": "2.0.0"
 }

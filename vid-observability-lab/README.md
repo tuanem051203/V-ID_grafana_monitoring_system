@@ -13,14 +13,14 @@ metrics V-ID thật chưa sẵn sàng.
 ```text
 Metrics Simulator ── /metrics ──> Prometheus ──> rules ──> Alertmanager
        │                              │
-       └─ sampled OTLP traces ─> OTel Collector ─> Tempo
+       └─ OTLP traces (100% local/demo) ─> OTel Collector ─> Tempo
                                       │
 Prometheus + Tempo ───────────────────┴──────────> Grafana
 ```
 
 Service không dùng database hay Kafka thật. Counter chỉ tăng trong vòng đời
 process; traffic/latency/incident đều synthetic. Simulator có OpenTelemetry để
-phát sampled OTP traces, nhưng đây không phải context được truyền qua nhiều
+phát OTP traces (100% trong local/demo), nhưng đây không phải context được truyền qua nhiều
 process thật.
 
 ## Cấu trúc repository
@@ -118,7 +118,7 @@ instrumentation thật nằm tại [`docs/CROSS-REGION-MONITORING.md`](docs/CROS
 
 OTP journey simulator mô hình hóa luồng edge → Kong → IdP → Redis → routing →
 queue → GSM → carrier. OpenTelemetry Collector và Tempo được khởi động cùng
-stack; 10% journey được sample thành synthetic trace. Hướng dẫn demo và giới hạn
+stack; local/demo lưu 100% journey thành synthetic trace. Hướng dẫn demo và giới hạn
 dữ liệu nằm tại [`docs/OTP-JOURNEY-MONITORING.md`](docs/OTP-JOURNEY-MONITORING.md).
 
 Mapping production lấy từ `../docs/v-id-intern-docs`: IdP sở hữu OTP; browser

@@ -6,6 +6,8 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 processors:
+  # Local/demo intentionally has no probabilistic or tail-sampling processor.
+  # The SDK uses always_on, so every received span is forwarded to Tempo.
   batch: {}
 exporters:
   otlp/tempo:

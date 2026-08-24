@@ -100,7 +100,7 @@ flowchart TB
     RR --> G[Grafana Dashboard]
     RR --> A[Alertmanager]
 
-    SIM -->|10% sampled OTLP traces| O[OpenTelemetry Collector]
+    SIM -->|100% OTLP traces trong local/demo| O[OpenTelemetry Collector]
     O --> T[Tempo]
     T --> G
 
@@ -108,7 +108,8 @@ flowchart TB
 ```
 
 - Metrics dùng để nhìn toàn cảnh: throughput, success rate, p95, errors và queue.
-- Khoảng 10% journey được sample thành synthetic trace.
+- Local/demo đặt SDK sampler `always_on` và phát trace cho 100% journey; UAT/production
+  vẫn dùng sampling 10% để kiểm soát chi phí.
 - Prometheus histogram gắn exemplar `trace_id`.
 - Từ điểm bất thường trên Grafana có thể mở đúng trace trong Tempo.
 
@@ -191,7 +192,7 @@ worker concurrency hoặc retry backlog của Notification Center.
 - Dừng journey tại terminal failure.
 - Hỗ trợ degradation theo country và stage.
 - Hỗ trợ queue-backlog scenario.
-- Sample khoảng 10% journey thành trace.
+- Trace 100% journey trong local/demo; tỷ lệ UAT/production cấu hình độc lập.
 
 ### Prometheus
 
@@ -296,6 +297,42 @@ docker compose --env-file .env -f generated/local/docker-compose.yml up --build 
 
 Tempo không có web UI ở `http://localhost:3200/`; trả về 404 tại `/` là bình
 thường. Trace được xem trong Grafana. Endpoint kiểm tra Tempo là `/ready`.
+
+### Kiểm chứng local lưu 100% HTTP trace
+
+Sau khi render và khởi động stack, chạy:
+
+```bash
+python3 scripts/verify-tracing.py
+```
+
+Script tạo một batch ID ngẫu nhiên, gửi 20 request HTTP 200 và 5 request HTTP
+500, rồi chờ Collector batch-export sang Tempo. Nó chỉ truy vấn span có batch ID
+đó và bắt buộc đồng thời thỏa các điều kiện:
+
+- Có đúng 25 trace ID khác nhau và mỗi trace có đúng một HTTP root span.
+- Tempo lưu đúng 20 status 200 và 5 status 500; span lỗi có error status.
+- Resource có `service.name`, `service.version` và `deployment.environment`.
+
+Marker kiểm thử là header được allowlist riêng, chỉ nhận ký tự chữ/số, `-`, `_`
+và tối đa 64 ký tự. Hệ thống không capture request/response body, password,
+token, cookie hoặc toàn bộ HTTP headers.
+
+FastAPI instrumentation dùng allowlist URL
+`/api/international-phone-otp/`. Vì vậy các request kỹ thuật hoặc quản trị như
+`/metrics`, `/health`, `/api/simulation`, `/docs` và các URL 404 không tạo trace.
+Các synthetic journey `POST /v1/auth/challenge` vẫn được tạo độc lập và không bị
+ảnh hưởng bởi HTTP filter này.
+
+Luồng local/demo:
+
+```mermaid
+flowchart LR
+    C[HTTP client] -->|W3C traceparent nếu có| A[FastAPI + OTel SDK always_on]
+    A -->|OTLP gRPC :4317| O[OTel Collector]
+    O -->|batch, không sampling/drop| T[Tempo :4317]
+    T --> G[Grafana Explore / Traces Drilldown]
+```
 
 ## 11. Metrics và recorded series
 

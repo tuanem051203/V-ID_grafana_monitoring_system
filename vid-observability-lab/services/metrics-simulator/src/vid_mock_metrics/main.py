@@ -6,14 +6,14 @@ import os
 from contextlib import asynccontextmanager, suppress
 from typing import AsyncIterator
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from vid_mock_metrics.config import load_settings
 from vid_mock_metrics.generator import MetricsGenerator
 from vid_mock_metrics.metrics import REGISTRY
-from vid_mock_metrics.tracing import configure_tracing
+from vid_mock_metrics.tracing import configure_tracing, instrument_fastapi
 
 log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_name, None)
@@ -55,11 +55,24 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="V-ID Production-like Metrics Simulator", version="2.0.0", lifespan=lifespan)
+instrument_fastapi(app)
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "healthy"}
+
+
+@app.get("/api/international-phone-otp/tracing/verify/success")
+async def tracing_verify_success() -> dict[str, str]:
+    """Stable HTTP 200 route used by the local all-traces verification."""
+    return {"status": "ok"}
+
+
+@app.get("/api/international-phone-otp/tracing/verify/error")
+async def tracing_verify_error() -> None:
+    """Stable HTTP 500 route used by the local all-traces verification."""
+    raise HTTPException(status_code=500, detail="synthetic tracing verification error")
 
 
 @app.get("/metrics", include_in_schema=False)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
@@ -100,6 +101,9 @@ class MetricsGenerator:
             self._random,
         )
         self._scheduler = EventScheduler(settings.events)
+        self._otp_trace_ratio = float(os.getenv("VID_OTP_TRACE_RATIO", "0.10"))
+        if not 0.0 <= self._otp_trace_ratio <= 1.0:
+            raise ValueError("VID_OTP_TRACE_RATIO must be between 0 and 1")
         now = datetime.now().astimezone()
         self._anchor_second = now.hour * 3600 + now.minute * 60 + now.second
         self._anchor_monotonic = time.monotonic()
@@ -385,7 +389,9 @@ class MetricsGenerator:
                         ).inc()
                         break
                 trace_value = None
-                if self._random.split(1, (0.90, 0.10))[1] == 1:
+                if self._random.split(
+                    1, (1.0 - self._otp_trace_ratio, self._otp_trace_ratio)
+                )[1] == 1:
                     trace_value = emit_otp_trace(
                         {
                             "otp.destination_country": country,

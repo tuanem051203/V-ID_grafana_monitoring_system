@@ -8,7 +8,15 @@ services:
       APP_ENV: @@ENVIRONMENT@@
       CONFIG_FILE: /app/config/runtime.json
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      OTEL_SERVICE_NAME: vid-metrics-simulator
+      OTEL_SERVICE_VERSION: "@@TRACING_SERVICE_VERSION@@"
+      OTEL_DEPLOYMENT_ENVIRONMENT: @@ENVIRONMENT@@
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_TRACES_SAMPLER: @@TRACING_SAMPLER@@
+      OTEL_TRACES_SAMPLER_ARG: "@@TRACING_SAMPLER_ARG@@"
+      OTEL_PROPAGATORS: @@TRACING_PROPAGATORS@@
+      VID_OTP_TRACE_RATIO: "@@TRACING_OTP_TRACE_RATIO@@"
     volumes:
       - ../../services/metrics-simulator/config/runtime.json:/app/config/runtime.json:ro
     ports:

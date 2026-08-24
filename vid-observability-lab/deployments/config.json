@@ -30,6 +30,10 @@
       "datasource_url": "http://prometheus:9090",
       "datasource_interval": "5s"
     },
+    "tracing": {
+      "service_version": "2.0.0",
+      "propagators": "tracecontext,baggage"
+    },
     "alertmanager": {
       "resolve_timeout": "5m",
       "group_by": ["alertname", "environment", "cluster", "service"],
@@ -41,6 +45,11 @@
     "local": {
       "project_name": "vid-observability-lab",
       "cluster": "docker-compose",
+      "tracing": {
+        "sampler": "always_on",
+        "sampler_arg": 1.0,
+        "otp_trace_ratio": 1.0
+      },
       "public_urls": {
         "metrics_simulator": "http://localhost:8000",
         "prometheus": "http://localhost:9090",
@@ -63,6 +72,11 @@
     "uat": {
       "project_name": "vid-observability-uat",
       "cluster": "vid-uat",
+      "tracing": {
+        "sampler": "parentbased_traceidratio",
+        "sampler_arg": 0.1,
+        "otp_trace_ratio": 0.1
+      },
       "public_urls": {
         "metrics_simulator": "https://metrics-uat.example.com",
         "prometheus": "https://prometheus-uat.example.com",
@@ -85,6 +99,11 @@
     "production": {
       "project_name": "vid-observability-production",
       "cluster": "vid-production",
+      "tracing": {
+        "sampler": "parentbased_traceidratio",
+        "sampler_arg": 0.1,
+        "otp_trace_ratio": 0.1
+      },
       "public_urls": {
         "metrics_simulator": "https://metrics.example.com",
         "prometheus": "https://prometheus.example.com",

@@ -37,5 +37,10 @@
   "public_urls_runbooks": "https://docs.example.com/runbooks",
   "targets_alertmanager": "alertmanager:9093",
   "targets_metrics_simulator": "metrics-simulator:8000",
-  "targets_prometheus": "prometheus:9090"
+  "targets_prometheus": "prometheus:9090",
+  "tracing_otp_trace_ratio": "0.1",
+  "tracing_propagators": "tracecontext,baggage",
+  "tracing_sampler": "parentbased_traceidratio",
+  "tracing_sampler_arg": "0.1",
+  "tracing_service_version": "2.0.0"
 }

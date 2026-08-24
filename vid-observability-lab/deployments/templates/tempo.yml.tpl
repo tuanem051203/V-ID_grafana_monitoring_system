@@ -24,9 +24,17 @@ compactor:
 # metrics queries require a metrics-generator registered in the ring and the
 # local-blocks processor enabled for the tenant.
 metrics_generator:
+  storage:
+    # Tempo 2.x disables the metrics-generator when this WAL path is absent,
+    # even when it is used only for TraceQL local-blocks queries.
+    path: /var/tempo/generator/wal
   ring:
     kvstore:
       store: inmemory
+    # The distroless container may not resolve a usable interface automatically.
+    # Advertise the in-process gRPC listener so monolithic Tempo joins its own ring.
+    instance_addr: 127.0.0.1
+    instance_port: 9095
   processor:
     local_blocks:
       filter_server_spans: false
