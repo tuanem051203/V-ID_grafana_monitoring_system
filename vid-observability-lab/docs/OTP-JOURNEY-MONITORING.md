@@ -13,6 +13,8 @@ Giải pháp kết hợp hai lớp quan sát:
   trên toàn bộ traffic.
 - **OpenTelemetry + Tempo** mở waterfall của một request được sample để xác minh
   chính xác thời gian tiêu tốn tại từng stage.
+- **Loki** tra log nghiệp vụ cùng `trace_id`/`span_id` để biết stage đã thực hiện
+  gì và thất bại theo reason nào.
 
 Kết quả của demo là một dashboard có thể chỉ ra vị trí nghi ngờ bottleneck, sau đó
 đi từ biểu đồ tổng hợp tới trace chi tiết của request.
@@ -273,6 +275,7 @@ Prometheus        :9090
 Alertmanager      :9093
 Grafana           :3000
 Tempo API         :3200
+Loki API          :3100
 OTel Collector    :4317/4318 trong Docker network
 ```
 
@@ -332,6 +335,62 @@ flowchart LR
     A -->|OTLP gRPC :4317| O[OTel Collector]
     O -->|batch, không sampling/drop| T[Tempo :4317]
     T --> G[Grafana Explore / Traces Drilldown]
+```
+
+### Log tương quan với trace bằng Loki
+
+```mermaid
+flowchart LR
+    S[OTP journey stage] -->|OTel span| C[OTel Collector]
+    S -->|OTel structured log<br/>cùng trace_id/span_id| C
+    C --> T[Tempo]
+    C --> L[Loki]
+    T <-->|Trace to logs / Log to trace| G[Grafana]
+    L <--> G
+```
+
+Simulator sinh log tại đúng context của root span hoặc stage span tương ứng. Mốc
+thời gian log cũng dùng thời gian synthetic của stage, vì vậy log và waterfall
+khớp nhau thay vì chỉ có cùng một trace ID.
+
+Các event chính:
+
+| `event_name` | Level | Ý nghĩa |
+|---|---|---|
+| `otp.journey.accepted` | INFO | IdP nhận yêu cầu tạo International OTP challenge |
+| `otp.stage.completed` | INFO/WARNING | Một stage hoàn tất hoặc dependency thất bại |
+| `otp.journey.completed` | INFO/ERROR | Journey kết thúc success hoặc failure |
+
+Metadata phục vụ điều tra gồm `trace_id`, `span_id`, country, provider, stage,
+target service, result và `duration_ms`. Không log số điện thoại/MSISDN, mã OTP,
+token, authorization header, password hay nội dung SMS.
+
+Quy ước labels/metadata đã chuẩn hóa:
+
+| Nhóm | Tên | Quy tắc |
+|---|---|---|
+| Loki index labels | `environment`, `service_name` | Giá trị hữu hạn, dùng chọn stream |
+| Correlation metadata | `trace_id`, `span_id`, `journey_id` | Không index để tránh cardinality cao |
+| OTP dimensions | `destination_country`, `channel`, `provider`, `stage`, `service`, `result` | Cùng tên logic với Prometheus labels |
+| Event metadata | `event_name`, `duration_ms`, `error_type` | Filter sau khi chọn stream |
+
+Trong Tempo, các domain attributes vẫn theo namespace OTel dạng
+`otp.destination_country`, `otp.stage`, `otp.result`; Loki chuyển chúng về tên
+phẳng ở bảng trên để LogQL dễ đọc. `service_name` luôn là service phát log, còn
+`service` là dependency/owner của stage.
+
+Trong Grafana:
+
+1. Vào **Explore → Loki**.
+2. Chạy `{service_name="vid-metrics-simulator"}`.
+3. Filter `event_name`, `stage`, `provider` hoặc `result`.
+4. Chọn **TraceID** trên log để mở đúng waterfall Tempo.
+5. Chiều ngược lại, mở trace Tempo và chọn **Logs for this span**.
+
+Kiểm chứng correlation bằng API:
+
+```bash
+python3 scripts/verify-log-trace-correlation.py
 ```
 
 ## 11. Metrics và recorded series

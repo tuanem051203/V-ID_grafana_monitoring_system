@@ -13,6 +13,7 @@ services:
       OTEL_DEPLOYMENT_ENVIRONMENT: production
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
       OTEL_TRACES_SAMPLER: parentbased_traceidratio
       OTEL_TRACES_SAMPLER_ARG: "0.1"
       OTEL_PROPAGATORS: tracecontext,baggage
@@ -35,6 +36,16 @@ services:
       - "3200:3200"
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:3.5.3
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.131.1
     command: ["--config=/etc/otelcol/config.yml"]
@@ -42,6 +53,7 @@ services:
       - ./otel-collector/config.yml:/etc/otelcol/config.yml:ro
     depends_on:
       - tempo
+      - loki
     restart: unless-stopped
 
   alertmanager:
@@ -64,6 +76,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --enable-feature=exemplar-storage
+      - --storage.tsdb.retention.time=15d
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -91,6 +104,7 @@ services:
     depends_on:
       - prometheus
       - tempo
+      - loki
     restart: unless-stopped
 
 volumes:
@@ -98,6 +112,7 @@ volumes:
   grafana-data:
   alertmanager-data:
   tempo-data:
+  loki-data:
 
 secrets:
   smtp_password:

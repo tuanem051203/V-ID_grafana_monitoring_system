@@ -101,13 +101,10 @@ def main() -> None:
         PROJECT_ROOT / "observability" / "prometheus" / "rules" / "vid-kpi-rules.yml",
         output / "prometheus" / "rules" / "vid-kpi-rules.yml",
     )
-    shutil.copy2(
-        PROJECT_ROOT
-        / "observability"
-        / "prometheus"
-        / "rules"
-        / "vid-cross-region-rules.yml",
+    render(
+        "../../observability/prometheus/rules/vid-cross-region-rules.yml",
         output / "prometheus" / "rules" / "vid-cross-region-rules.yml",
+        values,
     )
     render(
         "../../observability/prometheus/rules/vid-otp-journey-rules.yml",
@@ -122,6 +119,7 @@ def main() -> None:
     )
     render("grafana-prometheus.yml.tpl", output / "grafana" / "prometheus.yml", values)
     render("tempo.yml.tpl", output / "tempo" / "tempo.yml", values)
+    render("loki.yml.tpl", output / "loki" / "loki.yml", values)
     render(
         "otel-collector.yml.tpl",
         output / "otel-collector" / "config.yml",

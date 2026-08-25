@@ -17,7 +17,7 @@ storage:
       path: /var/tempo/wal
 compactor:
   compaction:
-    block_retention: 24h
+    block_retention: @@TELEMETRY_RETENTION_TRACES@@
 
 # Tempo 2.8 TraceQL metrics (for Grafana Traces Drilldown queries such as
 # `{ ... } | rate()`). A trace search works without this component, but range

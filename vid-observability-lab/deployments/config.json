@@ -6,6 +6,7 @@
       "prometheus": "prom/prometheus:v3.5.0",
       "alertmanager": "prom/alertmanager:v0.28.1",
       "grafana": "grafana/grafana:12.1.0",
+      "loki": "grafana/loki:3.5.3",
       "tempo": "grafana/tempo:2.8.2",
       "otel_collector": "otel/opentelemetry-collector-contrib:0.131.1"
     },
@@ -14,7 +15,8 @@
       "prometheus": 9090,
       "alertmanager": 9093,
       "grafana": 3000,
-      "tempo": 3200
+      "tempo": 3200,
+      "loki": 3100
     },
     "targets": {
       "metrics_simulator": "metrics-simulator:8000",
@@ -33,6 +35,36 @@
     "tracing": {
       "service_version": "2.0.0",
       "propagators": "tracecontext,baggage"
+    },
+    "telemetry": {
+      "retention": {
+        "metrics": "15d",
+        "traces": "24h",
+        "logs": "24h"
+      },
+      "alerts": {
+        "target_down_for": "2m",
+        "rule_evaluation_failure_for": "5m",
+        "eligible_traffic_missing_for": "10m",
+        "slo_fast_burn_rate": 14.4,
+        "slo_fast_burn_for": "2m",
+        "slo_slow_burn_rate": 6,
+        "slo_slow_burn_for": "15m",
+        "otp_provider_down_for": "2m",
+        "otp_queue_size": 100,
+        "otp_queue_for": "5m",
+        "otp_journey_p95_seconds": 8,
+        "otp_journey_for": "5m",
+        "otp_stage_error_ratio": 0.05,
+        "otp_stage_p95_seconds": 5,
+        "otp_stage_for": "5m",
+        "otp_receipt_missing_for": "10m",
+        "cross_region_success_ratio": 0.95,
+        "cross_region_p95_seconds": 1,
+        "cross_region_hop_error_ratio": 0.05,
+        "cross_region_hop_p95_seconds": 0.75,
+        "cross_region_for": "5m"
+      }
     },
     "alertmanager": {
       "resolve_timeout": "5m",

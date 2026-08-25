@@ -44,29 +44,29 @@ groups:
     interval: 30s
     rules:
       - alert: VIDCrossRegionSuccessRateLow
-        expr: vid:cross_region_success:ratio5m < 0.95
-        for: 5m
+        expr: vid:cross_region_success:ratio5m < @@TELEMETRY_ALERTS_CROSS_REGION_SUCCESS_RATIO@@
+        for: @@TELEMETRY_ALERTS_CROSS_REGION_FOR@@
         labels: {severity: critical, team: vid-sre, service: identity-platform}
         annotations:
           summary: "Cross-region request success rate is low"
-          description: "Route {{ $labels.source_region }} to {{ $labels.destination_region }} for {{ $labels.service }} has remained below 95% success for 5 minutes."
-          dashboard_url: "http://localhost:3000/d/sso-cross-region"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/cross-region-request"
+          description: "Route {{ $labels.source_region }} to {{ $labels.destination_region }} for {{ $labels.service }} has remained below the configured @@TELEMETRY_ALERTS_CROSS_REGION_SUCCESS_RATIO@@ success ratio."
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-cross-region"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/cross-region-request"
       - alert: VIDCrossRegionLatencyHigh
-        expr: vid:cross_region_latency:p95_5m > 1
-        for: 5m
+        expr: vid:cross_region_latency:p95_5m > @@TELEMETRY_ALERTS_CROSS_REGION_P95_SECONDS@@
+        for: @@TELEMETRY_ALERTS_CROSS_REGION_FOR@@
         labels: {severity: warning, team: vid-sre, service: identity-platform}
         annotations:
           summary: "Cross-region request latency is high"
-          description: "Route {{ $labels.source_region }} to {{ $labels.destination_region }} for {{ $labels.service }} has p95 latency above 1 second."
-          dashboard_url: "http://localhost:3000/d/sso-cross-region"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/cross-region-request"
+          description: "Route {{ $labels.source_region }} to {{ $labels.destination_region }} for {{ $labels.service }} has p95 latency above @@TELEMETRY_ALERTS_CROSS_REGION_P95_SECONDS@@ seconds."
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-cross-region"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/cross-region-request"
       - alert: VIDCrossRegionHopDegraded
-        expr: vid:cross_region_hop_error:ratio5m > 0.05 or vid:cross_region_hop_latency:p95_5m > 0.75
-        for: 5m
+        expr: vid:cross_region_hop_error:ratio5m > @@TELEMETRY_ALERTS_CROSS_REGION_HOP_ERROR_RATIO@@ or vid:cross_region_hop_latency:p95_5m > @@TELEMETRY_ALERTS_CROSS_REGION_HOP_P95_SECONDS@@
+        for: @@TELEMETRY_ALERTS_CROSS_REGION_FOR@@
         labels: {severity: warning, team: vid-sre, service: identity-platform}
         annotations:
           summary: "Cross-region route hop is degraded"
           description: "Hop {{ $labels.hop }} on {{ $labels.source_region }} to {{ $labels.destination_region }} is slow or failing for {{ $labels.service }}."
-          dashboard_url: "http://localhost:3000/d/sso-cross-region"
-          runbook_url: "https://REPLACE-WITH-DOCS-HOST/runbooks/cross-region-request"
+          dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-cross-region"
+          runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/cross-region-request"

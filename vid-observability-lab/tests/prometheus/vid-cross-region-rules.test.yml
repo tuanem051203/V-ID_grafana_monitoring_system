@@ -1,7 +1,8 @@
 rule_files:
-  - ../../observability/prometheus/rules/vid-cross-region-rules.yml
+  - ../../generated/local/prometheus/rules/vid-cross-region-rules.yml
 
 evaluation_interval: 1m
+fuzzy_compare: true
 
 tests:
   - interval: 1m

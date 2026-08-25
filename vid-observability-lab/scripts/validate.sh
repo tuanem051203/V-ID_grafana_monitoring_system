@@ -25,11 +25,11 @@ for deployment_config in deployments/*.json; do
   python3 -m json.tool "$deployment_config" >/dev/null
 done
 promtool check rules observability/prometheus/rules/vid-kpi-rules.yml
-promtool check rules observability/prometheus/rules/vid-cross-region-rules.yml
 for environment in $ENVIRONMENTS; do
   promtool check config "generated/$environment/prometheus/prometheus.yml"
   promtool check rules "generated/$environment/prometheus/rules/vid-alert-rules.yml"
   promtool check rules "generated/$environment/prometheus/rules/vid-otp-journey-rules.yml"
+  promtool check rules "generated/$environment/prometheus/rules/vid-cross-region-rules.yml"
   (
     cd "generated/$environment/alertmanager"
     amtool check-config alertmanager.yml

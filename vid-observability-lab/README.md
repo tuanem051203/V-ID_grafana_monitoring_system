@@ -8,6 +8,10 @@ metrics V-ID thật chưa sẵn sàng.
 > deployment. Các trường owner/target/route/runbook còn `TBD` hoặc
 > `REPLACE-*` là release blocker và phải được thay thế trước khi release.
 
+Retention, sampling và alert thresholds được quản lý tập trung trong
+`deployments/config.json`; policy và quy trình thay đổi nằm tại
+[`docs/TELEMETRY-STRATEGY.md`](docs/TELEMETRY-STRATEGY.md).
+
 ## Kiến trúc
 
 ```text
@@ -15,7 +19,7 @@ Metrics Simulator ── /metrics ──> Prometheus ──> rules ──> Alert
        │                              │
        └─ OTLP traces (100% local/demo) ─> OTel Collector ─> Tempo
                                       │
-Prometheus + Tempo ───────────────────┴──────────> Grafana
+Prometheus + Tempo + Loki ────────────┴──────────> Grafana
 ```
 
 Service không dùng database hay Kafka thật. Counter chỉ tăng trong vòng đời
@@ -105,6 +109,7 @@ Các URL:
 - Grafana: http://localhost:3000
 - Alertmanager: http://localhost:9093
 - Tempo API: http://localhost:3200
+- Loki API: http://localhost:3100
 
 Prometheus datasource và 9 dashboard được provision tự động: Overview,
 Authentication, MFA & OTP, OTP Journey, Token Lifecycle, Authorization, Platform
@@ -117,8 +122,9 @@ request thực sự đi qua quốc gia đó. Chi tiết metric, giới hạn d�
 instrumentation thật nằm tại [`docs/CROSS-REGION-MONITORING.md`](docs/CROSS-REGION-MONITORING.md).
 
 OTP journey simulator mô hình hóa luồng edge → Kong → IdP → Redis → routing →
-queue → GSM → carrier. OpenTelemetry Collector và Tempo được khởi động cùng
-stack; local/demo lưu 100% journey thành synthetic trace. Hướng dẫn demo và giới hạn
+queue → GSM → carrier. OpenTelemetry Collector, Tempo và Loki được khởi động cùng
+stack; local/demo lưu 100% journey thành synthetic trace và structured log có
+`trace_id`/`span_id` tương ứng. Hướng dẫn demo và giới hạn
 dữ liệu nằm tại [`docs/OTP-JOURNEY-MONITORING.md`](docs/OTP-JOURNEY-MONITORING.md).
 
 Mapping production lấy từ `../docs/v-id-intern-docs`: IdP sở hữu OTP; browser

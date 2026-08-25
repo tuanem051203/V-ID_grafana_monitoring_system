@@ -13,6 +13,7 @@ services:
       OTEL_DEPLOYMENT_ENVIRONMENT: @@ENVIRONMENT@@
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
       OTEL_TRACES_SAMPLER: @@TRACING_SAMPLER@@
       OTEL_TRACES_SAMPLER_ARG: "@@TRACING_SAMPLER_ARG@@"
       OTEL_PROPAGATORS: @@TRACING_PROPAGATORS@@
@@ -35,6 +36,16 @@ services:
       - "@@PORTS_TEMPO@@:3200"
     restart: unless-stopped
 
+  loki:
+    image: @@IMAGES_LOKI@@
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "@@PORTS_LOKI@@:3100"
+    restart: unless-stopped
+
   otel-collector:
     image: @@IMAGES_OTEL_COLLECTOR@@
     command: ["--config=/etc/otelcol/config.yml"]
@@ -42,6 +53,7 @@ services:
       - ./otel-collector/config.yml:/etc/otelcol/config.yml:ro
     depends_on:
       - tempo
+      - loki
     restart: unless-stopped
 
   alertmanager:
@@ -64,6 +76,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --enable-feature=exemplar-storage
+      - --storage.tsdb.retention.time=@@TELEMETRY_RETENTION_METRICS@@
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -91,6 +104,7 @@ services:
     depends_on:
       - prometheus
       - tempo
+      - loki
     restart: unless-stopped
 
 volumes:
@@ -98,6 +112,7 @@ volumes:
   grafana-data:
   alertmanager-data:
   tempo-data:
+  loki-data:
 
 secrets:
   smtp_password:

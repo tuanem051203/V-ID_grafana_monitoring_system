@@ -13,7 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from vid_mock_metrics.config import load_settings
 from vid_mock_metrics.generator import MetricsGenerator
 from vid_mock_metrics.metrics import REGISTRY
-from vid_mock_metrics.tracing import configure_tracing, instrument_fastapi
+from vid_mock_metrics.tracing import configure_tracing, emit_otp_trace, instrument_fastapi
 
 log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_name, None)
@@ -73,6 +73,30 @@ async def tracing_verify_success() -> dict[str, str]:
 async def tracing_verify_error() -> None:
     """Stable HTTP 500 route used by the local all-traces verification."""
     raise HTTPException(status_code=500, detail="synthetic tracing verification error")
+
+
+@app.post("/api/international-phone-otp/tracing/generate")
+async def tracing_generate_otp_journey() -> dict[str, str | None]:
+    """Create one deterministic, non-PII journey for log/trace correlation checks."""
+    trace_id = emit_otp_trace(
+        {
+            "otp.destination_country": "id",
+            "otp.channel": "sms",
+            "otp.provider": "gsm",
+            "simulation.synthetic": "true",
+        },
+        [
+            ("edge_to_kong", "kong", 0.018, "success"),
+            ("kong_to_idp", "identity-provider", 0.042, "success"),
+            ("redis_challenge", "redis", 0.009, "success"),
+            ("route_selection", "identity-provider", 0.004, "success"),
+            ("queue_wait", "notification-center", 0.075, "success"),
+            ("gsm_submit", "gsm-gateway", 0.280, "success"),
+            ("carrier_delivery", "sms-provider", 2.400, "success"),
+        ],
+        "success",
+    )
+    return {"trace_id": trace_id}
 
 
 @app.get("/metrics", include_in_schema=False)

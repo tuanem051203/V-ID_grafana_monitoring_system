@@ -18,6 +18,7 @@ PROMETHEUS_URL=$(config_value public_urls_prometheus)
 ALERTMANAGER_URL=$(config_value public_urls_alertmanager)
 GRAFANA_URL=$(config_value public_urls_grafana)
 TEMPO_URL="http://localhost:$(config_value ports_tempo)"
+LOKI_URL="http://localhost:$(config_value ports_loki)"
 
 compose() {
   docker compose -p "$CI_PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
@@ -55,6 +56,7 @@ wait_for_url "Prometheus" "$PROMETHEUS_URL/-/ready"
 wait_for_url "Alertmanager" "$ALERTMANAGER_URL/-/ready"
 wait_for_url "Grafana" "$GRAFANA_URL/api/health" 60
 wait_for_url "Tempo" "$TEMPO_URL/ready" 60
+wait_for_url "Loki" "$LOKI_URL/ready" 60
 
 METRICS_URL="$METRICS_URL" PROMETHEUS_URL="$PROMETHEUS_URL" GRAFANA_URL="$GRAFANA_URL" \
 python3 - <<'PY'
@@ -101,6 +103,11 @@ PY
 
 python3 "$PROJECT_ROOT/scripts/verify-tracing.py" \
   --app-url "$METRICS_URL" \
+  --tempo-url "$TEMPO_URL"
+
+python3 "$PROJECT_ROOT/scripts/verify-log-trace-correlation.py" \
+  --app-url "$METRICS_URL" \
+  --loki-url "$LOKI_URL" \
   --tempo-url "$TEMPO_URL"
 
 echo "Integration smoke test passed"

@@ -4,7 +4,7 @@ groups:
     rules:
       - alert: VIDMetricsTargetDown
         expr: up{job="vid-metrics-simulator"} == 0
-        for: 2m
+        for: @@TELEMETRY_ALERTS_TARGET_DOWN_FOR@@
         labels:
           severity: critical
           team: vid-sre
@@ -17,7 +17,7 @@ groups:
 
       - alert: VIDRecordingRulesFailing
         expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
-        for: 5m
+        for: @@TELEMETRY_ALERTS_RULE_EVALUATION_FAILURE_FOR@@
         labels:
           severity: critical
           team: platform-observability
@@ -33,7 +33,7 @@ groups:
           absent(vid:eligible_requests:rate5m)
           or
           sum by (environment, cluster) (vid:eligible_requests:rate5m) == 0
-        for: 10m
+        for: @@TELEMETRY_ALERTS_ELIGIBLE_TRAFFIC_MISSING_FOR@@
         labels:
           severity: warning
           team: vid-sre
@@ -50,10 +50,10 @@ groups:
       # Fast burn: pages only when both short and long confirmation windows burn.
       - alert: VIDAuthenticationSuccessFastBurn
         expr: |
-          vid:slo_authentication_success:burnrate5m > 14.4
+          vid:slo_authentication_success:burnrate5m > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
           and on (environment, cluster)
-          vid:slo_authentication_success:burnrate1h > 14.4
-        for: 2m
+          vid:slo_authentication_success:burnrate1h > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
+        for: @@TELEMETRY_ALERTS_SLO_FAST_BURN_FOR@@
         labels:
           severity: critical
           team: vid-sre
@@ -61,16 +61,16 @@ groups:
           slo: authentication-success
         annotations:
           summary: "Authentication success SLO is burning fast"
-          description: "Error budget burn rate is above 14.4x on both 5m and 1h windows for {{ $labels.environment }}/{{ $labels.cluster }}."
+          description: "Error budget burn rate is above @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@x on both 5m and 1h windows for {{ $labels.environment }}/{{ $labels.cluster }}."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-authentication"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/authentication-success"
 
       - alert: VIDAuthenticationLatencyFastBurn
         expr: |
-          vid:slo_authentication_latency:burnrate5m > 14.4
+          vid:slo_authentication_latency:burnrate5m > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
           and on (environment, cluster)
-          vid:slo_authentication_latency:burnrate1h > 14.4
-        for: 2m
+          vid:slo_authentication_latency:burnrate1h > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
+        for: @@TELEMETRY_ALERTS_SLO_FAST_BURN_FOR@@
         labels:
           severity: critical
           team: vid-sre
@@ -78,16 +78,16 @@ groups:
           slo: authentication-latency
         annotations:
           summary: "Authentication latency SLO is burning fast"
-          description: "The under-500ms error budget is burning above 14.4x on 5m and 1h windows."
+          description: "The under-500ms error budget is burning above @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@x on 5m and 1h windows."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-authentication"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/authentication-latency"
 
       - alert: VIDOTPDeliveryFastBurn
         expr: |
-          vid:slo_otp_delivery:burnrate5m > 14.4
+          vid:slo_otp_delivery:burnrate5m > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
           and on (environment, cluster)
-          vid:slo_otp_delivery:burnrate1h > 14.4
-        for: 2m
+          vid:slo_otp_delivery:burnrate1h > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
+        for: @@TELEMETRY_ALERTS_SLO_FAST_BURN_FOR@@
         labels:
           severity: critical
           team: vid-sre
@@ -95,16 +95,16 @@ groups:
           slo: otp-delivery
         annotations:
           summary: "OTP delivery SLO is burning fast"
-          description: "OTP delivery error budget is burning above 14.4x on 5m and 1h windows."
+          description: "OTP delivery error budget is burning above @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@x on 5m and 1h windows."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-mfa-otp"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-delivery"
 
       - alert: VIDTokenIssuanceFastBurn
         expr: |
-          vid:slo_token_issuance:burnrate5m > 14.4
+          vid:slo_token_issuance:burnrate5m > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
           and on (environment, cluster)
-          vid:slo_token_issuance:burnrate1h > 14.4
-        for: 2m
+          vid:slo_token_issuance:burnrate1h > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
+        for: @@TELEMETRY_ALERTS_SLO_FAST_BURN_FOR@@
         labels:
           severity: critical
           team: vid-sre
@@ -112,16 +112,16 @@ groups:
           slo: token-issuance
         annotations:
           summary: "Token issuance SLO is burning fast"
-          description: "Token issuance error budget is burning above 14.4x on 5m and 1h windows."
+          description: "Token issuance error budget is burning above @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@x on 5m and 1h windows."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-token-lifecycle"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/token-issuance"
 
       - alert: VIDPlatformAvailabilityFastBurn
         expr: |
-          vid:slo_platform_availability:burnrate5m > 14.4
+          vid:slo_platform_availability:burnrate5m > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
           and on (environment, cluster)
-          vid:slo_platform_availability:burnrate1h > 14.4
-        for: 2m
+          vid:slo_platform_availability:burnrate1h > @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@
+        for: @@TELEMETRY_ALERTS_SLO_FAST_BURN_FOR@@
         labels:
           severity: critical
           team: vid-sre
@@ -129,7 +129,7 @@ groups:
           slo: platform-availability
         annotations:
           summary: "Platform availability SLO is burning fast"
-          description: "Platform availability error budget is burning above 14.4x on 5m and 1h windows."
+          description: "Platform availability error budget is burning above @@TELEMETRY_ALERTS_SLO_FAST_BURN_RATE@@x on 5m and 1h windows."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-platform"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/platform-availability"
 
@@ -137,42 +137,42 @@ groups:
       - alert: VIDSLOSlowBurn
         expr: |
           (
-            vid:slo_authentication_success:burnrate1h > 6
+            vid:slo_authentication_success:burnrate1h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
             and on (environment, cluster)
-            vid:slo_authentication_success:burnrate6h > 6
+            vid:slo_authentication_success:burnrate6h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
           )
           or
           (
-            vid:slo_authentication_latency:burnrate1h > 6
+            vid:slo_authentication_latency:burnrate1h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
             and on (environment, cluster)
-            vid:slo_authentication_latency:burnrate6h > 6
+            vid:slo_authentication_latency:burnrate6h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
           )
           or
           (
-            vid:slo_otp_delivery:burnrate1h > 6
+            vid:slo_otp_delivery:burnrate1h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
             and on (environment, cluster)
-            vid:slo_otp_delivery:burnrate6h > 6
+            vid:slo_otp_delivery:burnrate6h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
           )
           or
           (
-            vid:slo_token_issuance:burnrate1h > 6
+            vid:slo_token_issuance:burnrate1h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
             and on (environment, cluster)
-            vid:slo_token_issuance:burnrate6h > 6
+            vid:slo_token_issuance:burnrate6h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
           )
           or
           (
-            vid:slo_platform_availability:burnrate1h > 6
+            vid:slo_platform_availability:burnrate1h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
             and on (environment, cluster)
-            vid:slo_platform_availability:burnrate6h > 6
+            vid:slo_platform_availability:burnrate6h > @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@
           )
-        for: 15m
+        for: @@TELEMETRY_ALERTS_SLO_SLOW_BURN_FOR@@
         labels:
           severity: warning
           team: vid-sre
           service: identity-platform
         annotations:
           summary: "A V-ID SLO is experiencing sustained slow burn"
-          description: "Error budget burn is above 6x on both 1h and 6h windows. Inspect the SLO dashboard to identify the affected KPI."
+          description: "Error budget burn is above @@TELEMETRY_ALERTS_SLO_SLOW_BURN_RATE@@x on both 1h and 6h windows. Inspect the SLO dashboard to identify the affected KPI."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-reliability"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/slo-slow-burn"
 
@@ -181,7 +181,7 @@ groups:
     rules:
       - alert: VIDOTPProviderDown
         expr: otp_provider_status{provider!="mock"} == 0
-        for: 2m
+        for: @@TELEMETRY_ALERTS_OTP_PROVIDER_DOWN_FOR@@
         labels:
           severity: warning
           team: vid-sre
@@ -193,8 +193,8 @@ groups:
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-provider-down"
 
       - alert: VIDOTPQueueBacklog
-        expr: otp_queue_size > 100
-        for: 5m
+        expr: otp_queue_size > @@TELEMETRY_ALERTS_OTP_QUEUE_SIZE@@
+        for: @@TELEMETRY_ALERTS_OTP_QUEUE_FOR@@
         labels:
           severity: warning
           team: vid-sre

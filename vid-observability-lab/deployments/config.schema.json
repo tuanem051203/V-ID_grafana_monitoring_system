@@ -6,7 +6,67 @@
   "properties": {
     "$schema": {"type": "string"},
     "version": {"const": 1},
-    "defaults": {"type": "object"},
+    "defaults": {
+      "type": "object",
+      "required": ["telemetry"],
+      "properties": {
+        "telemetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["retention", "alerts"],
+          "properties": {
+            "retention": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["metrics", "traces", "logs"],
+              "properties": {
+                "metrics": {"type": "string", "pattern": "^[1-9][0-9]*[dh]$"},
+                "traces": {"type": "string", "pattern": "^[1-9][0-9]*[dh]$"},
+                "logs": {"type": "string", "pattern": "^[1-9][0-9]*[dh]$"}
+              }
+            },
+            "alerts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "target_down_for", "rule_evaluation_failure_for",
+                "eligible_traffic_missing_for", "slo_fast_burn_rate",
+                "slo_fast_burn_for", "slo_slow_burn_rate", "slo_slow_burn_for",
+                "otp_provider_down_for", "otp_queue_size", "otp_queue_for",
+                "otp_journey_p95_seconds", "otp_journey_for",
+                "otp_stage_error_ratio", "otp_stage_p95_seconds", "otp_stage_for",
+                "otp_receipt_missing_for", "cross_region_success_ratio",
+                "cross_region_p95_seconds", "cross_region_hop_error_ratio",
+                "cross_region_hop_p95_seconds", "cross_region_for"
+              ],
+              "properties": {
+                "target_down_for": {"$ref": "#/$defs/duration"},
+                "rule_evaluation_failure_for": {"$ref": "#/$defs/duration"},
+                "eligible_traffic_missing_for": {"$ref": "#/$defs/duration"},
+                "slo_fast_burn_rate": {"type": "number", "exclusiveMinimum": 0},
+                "slo_fast_burn_for": {"$ref": "#/$defs/duration"},
+                "slo_slow_burn_rate": {"type": "number", "exclusiveMinimum": 0},
+                "slo_slow_burn_for": {"$ref": "#/$defs/duration"},
+                "otp_provider_down_for": {"$ref": "#/$defs/duration"},
+                "otp_queue_size": {"type": "number", "minimum": 0},
+                "otp_queue_for": {"$ref": "#/$defs/duration"},
+                "otp_journey_p95_seconds": {"type": "number", "exclusiveMinimum": 0},
+                "otp_journey_for": {"$ref": "#/$defs/duration"},
+                "otp_stage_error_ratio": {"$ref": "#/$defs/ratio"},
+                "otp_stage_p95_seconds": {"type": "number", "exclusiveMinimum": 0},
+                "otp_stage_for": {"$ref": "#/$defs/duration"},
+                "otp_receipt_missing_for": {"$ref": "#/$defs/duration"},
+                "cross_region_success_ratio": {"$ref": "#/$defs/ratio"},
+                "cross_region_p95_seconds": {"type": "number", "exclusiveMinimum": 0},
+                "cross_region_hop_error_ratio": {"$ref": "#/$defs/ratio"},
+                "cross_region_hop_p95_seconds": {"type": "number", "exclusiveMinimum": 0},
+                "cross_region_for": {"$ref": "#/$defs/duration"}
+              }
+            }
+          }
+        }
+      }
+    },
     "environments": {
       "type": "object",
       "minProperties": 1,
@@ -37,5 +97,9 @@
         }
       }
     }
+  },
+  "$defs": {
+    "duration": {"type": "string", "pattern": "^[1-9][0-9]*[smhd]$"},
+    "ratio": {"type": "number", "minimum": 0, "maximum": 1}
   }
 }

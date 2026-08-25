@@ -22,17 +22,17 @@ groups:
     interval: 30s
     rules:
       - alert: VIDOTPJourneyLatencyHigh
-        expr: vid:otp_journey_latency:p95_5m > 8
-        for: 5m
+        expr: vid:otp_journey_latency:p95_5m > @@TELEMETRY_ALERTS_OTP_JOURNEY_P95_SECONDS@@
+        for: @@TELEMETRY_ALERTS_OTP_JOURNEY_FOR@@
         labels: {severity: warning, team: vid-sre, service: identity-provider}
         annotations:
           summary: "International OTP journey latency is high"
-          description: "OTP p95 to {{ $labels.destination_country }} via {{ $labels.provider }} exceeds 8 seconds."
+          description: "OTP p95 to {{ $labels.destination_country }} via {{ $labels.provider }} exceeds @@TELEMETRY_ALERTS_OTP_JOURNEY_P95_SECONDS@@ seconds."
           dashboard_url: "@@PUBLIC_URLS_GRAFANA@@/d/sso-otp-journey"
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-journey"
       - alert: VIDOTPStageDegraded
-        expr: vid:otp_stage_error:ratio5m > 0.05 or vid:otp_stage_latency:p95_5m > 5
-        for: 5m
+        expr: vid:otp_stage_error:ratio5m > @@TELEMETRY_ALERTS_OTP_STAGE_ERROR_RATIO@@ or vid:otp_stage_latency:p95_5m > @@TELEMETRY_ALERTS_OTP_STAGE_P95_SECONDS@@
+        for: @@TELEMETRY_ALERTS_OTP_STAGE_FOR@@
         labels: {severity: warning, team: vid-sre, service: identity-provider}
         annotations:
           summary: "An OTP journey stage is degraded"
@@ -41,7 +41,7 @@ groups:
           runbook_url: "@@PUBLIC_URLS_RUNBOOKS@@/otp-journey"
       - alert: VIDOTPDeliveryReceiptMissing
         expr: sum by (environment, cluster, destination_country, provider) (rate(otp_delivery_reports_total[10m])) == 0 and sum by (environment, cluster, destination_country, provider) (rate(otp_journey_requests_total[10m])) > 0
-        for: 10m
+        for: @@TELEMETRY_ALERTS_OTP_RECEIPT_MISSING_FOR@@
         labels: {severity: critical, team: vid-sre, service: sms-provider}
         annotations:
           summary: "OTP delivery receipts are missing"
